@@ -1,0 +1,8 @@
+profile = ocamlformat
+field-space = loose
+indicate-multiline-delimiters = no
+sequence-style = terminator
+break-cases = all
+break-separators = after
+indicate-nested-or-patterns = unsafe-no
+type-decl = sparse
