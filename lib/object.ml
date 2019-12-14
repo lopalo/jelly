@@ -1,3 +1,6 @@
+module S = String
+module L = List
+
 let format = Printf.sprintf
 
 type symbol = Symbol of string [@@unboxed]
@@ -17,31 +20,10 @@ type t =
   | Char of char
   | Str of string
   | Sym of symbol
-  | Pair of pair
+  | Cons of t list
   | Vec of t array
   | SymM of symbol * meta
-  | PairM of pair * meta
-
-and pair =
-  { mutable car : t;
-    mutable cdr : t }
-
-let cons car cdr = {car; cdr}
-
-let is_proper_pair = function
-  | Null -> true
-  | Pair {cdr; _}
-  | PairM ({cdr; _}, _) -> (
-    match cdr with
-    | Null
-    | Pair _
-    | PairM _ ->
-        true
-    | _ -> false)
-  | _ -> false
-
-let pairs_of_list objects =
-  List.fold_right (fun head tail -> Pair (cons head tail)) objects Null
+  | ConsM of t list * meta
 
 let rec to_string = function
   | Null -> "()"
@@ -57,29 +39,43 @@ let rec to_string = function
   | Sym (Symbol s)
   | SymM (Symbol s, _) ->
       s
-  | (Pair _ as p)
-  | (PairM _ as p) ->
-      "(" ^ pair_to_string p ^ ")"
-  | Vec _ -> "(#vector)"
+  | Cons objs
+  | ConsM (objs, _) ->
+      "(" ^ (L.map to_string objs |> S.concat " ") ^ ")"
+  | Vec _ -> "#vec()"
 
-and pair_to_string = function
-  | Pair {car; cdr = Null}
-  | PairM ({car; cdr = Null}, _) ->
-      to_string car
-  | (Pair {car; cdr} as p)
-  | (PairM ({car; cdr}, _) as p) ->
-      if is_proper_pair p then to_string car ^ " " ^ pair_to_string cdr
-      else format "#pair %s %s" (to_string car) (to_string cdr)
-  | o -> to_string o
+let bad_arg header obj = invalid_arg @@ header ^ ": " ^ to_string obj
 
-let bad_arg func_name obj = invalid_arg @@ func_name ^ ": " ^ to_string obj
+let cons head = function
+  | Null -> Cons [head]
+  | Cons tail
+  | ConsM (tail, _) ->
+      Cons (head :: tail)
+  | o -> bad_arg "cons:2" o
 
-let set_meta obj meta =
-  match obj with
-  | Sym s
-  | SymM (s, _) ->
-      SymM (s, meta)
-  | Pair p
-  | PairM (p, _) ->
-      PairM (p, meta)
-  | o -> bad_arg "set_meta" o
+let car = function
+  | Cons (head :: _)
+  | ConsM (head :: _, _) ->
+      head
+  | o -> bad_arg "car" o
+
+let cdr = function
+  | Cons (_ :: tail)
+  | ConsM (_ :: tail, _) -> (
+    match tail with
+    | [] -> Null
+    | o :: _ -> o)
+  | o -> bad_arg "cdr" o
+
+let copy_meta = function
+  | SymM (_, meta)
+  | ConsM (_, meta) -> (
+      function
+      | Sym s
+      | SymM (s, _) ->
+          SymM (s, meta)
+      | Cons p
+      | ConsM (p, _) ->
+          ConsM (p, meta)
+      | o -> bad_arg "copy-meta:2" o)
+  | o -> bad_arg "copy-meta:1:no-meta" o

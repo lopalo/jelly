@@ -226,7 +226,7 @@ let rec list_literal () =
   let* pos = current_position in
   let* content = separated_plus ~sep:spaces (lisp ()) in
   let* _ = character (if d_char = '(' then ')' else ']') in
-  return @@ Obj.set_meta (Obj.pairs_of_list content) pos
+  return @@ Obj.ConsM (content, pos)
 
 and lisp () =
   L.fold_left or_else null
@@ -243,7 +243,7 @@ let lisp_parser = lisp () |> separated_many ~sep:spaces |> parse_all
 
 let parse_lisp str =
   lisp_parser str
-  |> Result.map (fun (x, y) -> (x, y, Obj.to_string @@ Obj.pairs_of_list y))
+  |> Result.map (fun (x, y) -> (x, y, Obj.to_string @@ Obj.Cons y))
 
 (* For testing *)
 
