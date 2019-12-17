@@ -7,10 +7,14 @@ authors: "Vlad Lopalo"
 depends: [
   "dune" {>= "1.11.4"}
   "ocaml-base-compiler" {= "4.08.1"}
-  "merlin" {dev & >= "3.3.2"}
-  "ocamlformat" {dev  & >= "0.11.0"}
-  "ocp-indent" {dev & >= "1.8.1"}
-  "utop" {dev & >= "2.4.2"}
+  "fmt" {>= "0.8.8"}
+
+  "alcotest" {>= "0.8.5"}
+
+  "merlin" {>= "3.3.2"}
+  "ocamlformat" {>= "0.11.0"}
+  "ocp-indent" {>= "1.8.1"}
+  "utop" {>= "2.4.2"}
 ]
 build: [
   ["dune" "subst"] {pinned}

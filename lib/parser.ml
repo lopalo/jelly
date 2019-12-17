@@ -49,31 +49,31 @@ let string_of_chars chars =
   L.iter (Buffer.add_char buf) chars;
   Buffer.contents buf
 
-let any =
+let satisfy ?(pred_name = "unspecified") pred =
   { parse =
       (fun ({input; offset; line_number; column_number} as state) cont ->
         if S.length input = 0 then error state "End of input is reached"
         else
           let char = input.[0] in
-          let input' = S.sub input 1 (S.length input - 1) in
-          let line_number', column_number' =
-            if char = '\n' then (succ line_number, 0)
-            else (line_number, succ column_number)
-          in
-          cont
-            { input = input';
-              offset = succ offset;
-              line_number = line_number';
-              column_number = column_number' }
-            char) }
+          if not (pred char) then
+            error state @@ format "Predicate '%s' is not satisfied" pred_name
+          else
+            let input' = S.sub input 1 (S.length input - 1) in
+            let line_number', column_number' =
+              if char = '\n' then (succ line_number, 0)
+              else (line_number, succ column_number)
+            in
+            cont
+              { input = input';
+                offset = succ offset;
+                line_number = line_number';
+                column_number = column_number' }
+              char) }
 
-let satisfy ?(pred_name = "unspecified") pred =
-  bind any (fun char ->
-      if pred char then return char
-      else format "Predicate '%s' is not satisfied" pred_name |> failure)
+let any = satisfy @@ Fun.const true
 
 let unexpected_char =
-  bind any (fun char -> format "Unexpected character '%c'" char |> failure)
+  satisfy ~pred_name:"expected character" @@ Fun.const false
 
 let one_of chars =
   LL.mem ~set:chars |> satisfy ~pred_name:("one of: " ^ string_of_chars chars)
@@ -190,21 +190,20 @@ let floating =
   let ds'' = ds @ (dot :: ds') in
   string_of_chars ds'' |> float_of_string |> sign |> obj |> return
 
+let escaped_character = and_then ~combine:second (character '\\') any
+
 let char_literal =
   let space = fmap (Fun.const ' ') (string "\\space") in
   let newline = fmap (Fun.const '\n') (string "\\newline") in
-  let c = and_then ~combine:second (character '\\') any in
-  fmap (fun x -> Obj.Char x) (or_else space @@ or_else newline c)
+  fmap
+    (fun x -> Obj.Char x)
+    (or_else space @@ or_else newline escaped_character)
 
 let string_literal =
   let d_char = '"' in
   let delimeter = character d_char in
-  let backslash = fmap (Fun.const '\\') (string "\\\\") in
-  let double_quote = fmap (Fun.const '"') (string "\\\"") in
   let* _ = delimeter in
-  let* chars =
-    many @@ or_else backslash @@ or_else double_quote @@ none_of [d_char]
-  in
+  let* chars = many @@ or_else escaped_character @@ none_of [d_char] in
   let* _ = delimeter in
   return @@ Obj.Str (string_of_chars chars)
 
@@ -237,29 +236,15 @@ and lisp () =
       string_literal;
       symbol;
       list_literal ();
-      unexpected_char ]
+      fmap (Fun.const Obj.Null) unexpected_char ]
 
 let lisp_parser = lisp () |> separated_many ~sep:spaces |> parse_all
 
-let parse_lisp str =
-  lisp_parser str
-  |> Result.map (fun (x, y) -> (x, y, Obj.to_string @@ Obj.Cons y))
-
-(* For testing *)
+let parse_lisp str = lisp_parser str |> Result.map snd
 
 let sentences =
   let word = fmap string_of_chars (plus alphanumeric) in
   let sentence = separated_plus ~sep:spaces word in
   separated_many ~sep:dot sentence
 
-let sentence_parser = parse_all sentences
-
-let test_sentences () =
-  sentence_parser
-    " Jelly is\n\
-    \    a  programming language\n\
-     , so is Python. Sentence 2.\n\
-     Sentence   \n\
-    \ xxxx\n\
-    \      3.  Sentence 4 zzzzz \n\
-     . Sentence 5  "
+let parse_sentences str = parse_all sentences str |> Result.map snd

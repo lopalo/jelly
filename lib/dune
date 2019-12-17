@@ -1,2 +1,3 @@
 (library
- (name jelly))
+ (name jelly)
+ (libraries fmt))
