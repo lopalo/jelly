@@ -1,21 +1,14 @@
-module R = Result
 module A = Alcotest
 module P = Jelly.Parser
 
-let parse_error =
-  A.of_pp
-    (fun ppf
-         (P.ParseError ({line_number = lnum; column_number = cnum; _}, msg))
-         ->
-      let msg' = Printf.sprintf "%s at %i %i" msg (succ lnum) (succ cnum) in
-      Fmt.string ppf msg')
+let error = A.testable P.pp_error P.equal_error
 
-let parse_result testable = A.result testable parse_error
+let parse_result testable = A.result testable error
 
 let test_sentences () =
   A.(list string |> list |> parse_result |> check)
     "parsed sentences"
-    (R.Ok
+    (Ok
        [ ["Jelly"; "is"; "a"; "programming"; "language"; "so"; "is"; "Python"];
          ["Sentence"; "2"];
          ["Sentence"; "xxxx"; "3"];
@@ -33,41 +26,42 @@ let test_sentences () =
 let test_lisp () =
   A.(list Common.obj |> parse_result |> check)
     "parsed s-expressions"
-    (R.Ok
+    (Ok
        (let open Jelly.Object in
        [ Bool false;
-         Sym (Symbol "qn");
+         symbol "qn";
          Int 1;
          Char '\n';
          Char '\'';
-         Cons
+         list
            [ Int (-444);
              Int 4;
              Char 'n';
-             Cons
+             list
                [ Float (-0.33);
-                 Sym (Symbol "fun");
+                 symbol "fun";
                  Str "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
                  Char 'm';
-                 Cons [Str "ggg\\3333"];
+                 list [Str "ggg\\3333"];
                  Char ' ' ];
              Str "dd";
-             Cons [Str "ddd\"qqq"; Char 'n'; Float 4.5] ];
+             list [Str "ddd\"qqq"; Char 'n'; Float 4.5] ];
          Null;
          Str "aaa\nbbb\ncccn\nddd" ]))
-    (Common.parse_test_script "syntax.jl")
+    (Common.parse_test_script "syntax.jly")
 
 let test_wrong_lisp () =
   A.(list Common.obj |> parse_result |> check)
-    "parsed s-expressions"
-    (R.Error
+    "parse error"
+    (Error
        (ParseError
           ( { input = "#vec\"dd\" (ttt 4.5)]\n";
               offset = 82;
+              source_name = "wrong-syntax.jly";
               line_number = 3;
               column_number = 31 },
             "Predicate 'expected character' is not satisfied" )))
-    (Common.parse_test_script "wrong-syntax.jl")
+    (Common.parse_test_script "wrong-syntax.jly")
 
 let tests =
   [ A.test_case "sentences" `Quick test_sentences;

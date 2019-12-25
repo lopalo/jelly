@@ -9,10 +9,12 @@ let format = Printf.sprintf
 type state =
   { input : string;
     offset : int;
+    source_name : string;
     line_number : int;
     column_number : int }
+[@@deriving show, eq]
 
-type error = ParseError of state * string
+type error = ParseError of state * string [@@deriving show, eq]
 
 type 'a t =
   { parse :
@@ -35,12 +37,11 @@ let fmap f parser =
 
 let error state msg = Error (ParseError (state, msg))
 
-let failure msg = {parse = (fun state _ -> error state msg)}
-
 let current_position =
   { parse =
-      (fun ({line_number; column_number; _} as state) cont ->
-        cont state ({line_number; column_number} : Obj.position)) }
+      (fun ({source_name; line_number; column_number; _} as state) cont ->
+        cont state
+          ({source_name; line_number; column_number} : Common.position)) }
 
 let chars_of_string string = L.init (S.length string) (S.get string)
 
@@ -51,23 +52,25 @@ let string_of_chars chars =
 
 let satisfy ?(pred_name = "unspecified") pred =
   { parse =
-      (fun ({input; offset; line_number; column_number} as state) cont ->
+      (fun ({input; offset; source_name; line_number; column_number} as state)
+           cont ->
         if S.length input = 0 then error state "End of input is reached"
         else
           let char = input.[0] in
           if not (pred char) then
             error state @@ format "Predicate '%s' is not satisfied" pred_name
           else
-            let input' = S.sub input 1 (S.length input - 1) in
-            let line_number', column_number' =
+            let input = S.sub input 1 (S.length input - 1) in
+            let line_number, column_number =
               if char = '\n' then (succ line_number, 0)
               else (line_number, succ column_number)
             in
             cont
-              { input = input';
+              { input;
                 offset = succ offset;
-                line_number = line_number';
-                column_number = column_number' }
+                source_name;
+                line_number;
+                column_number }
               char) }
 
 let any = satisfy @@ Fun.const true
@@ -157,10 +160,12 @@ let end_of_input =
         if S.length input = 0 then cont state ()
         else error state "End of input is not reached") }
 
-let parse_all parser input =
+let parse_all parser ?(source_name = "no source") input =
   (and_then ~combine:first parser end_of_input).parse
-    {input; offset = 0; line_number = 0; column_number = 0} (fun state x ->
-      Ok (state, x))
+    {input; offset = 0; source_name; line_number = 0; column_number = 0}
+    (fun state x -> Ok (state, x))
+
+(* TODO: parse comments  starting with ; *)
 
 let null = fmap (Fun.const Obj.Null) (string "()")
 
@@ -211,21 +216,36 @@ let symbol =
   let init =
     or_else letter
     @@ one_of
-         ['!'; '$'; '%'; '&'; '*'; '/'; ':'; '<'; '='; '>'; '?'; '~'; '_'; '^']
+         [ '+';
+           '-';
+           '!';
+           '$';
+           '%';
+           '&';
+           '*';
+           '/';
+           ':';
+           '<';
+           '=';
+           '>';
+           '?';
+           '~';
+           '_';
+           '^' ]
   in
-  let subs = many @@ or_else init @@ or_else digit @@ one_of ['+'; '-'; '.'] in
-  let* c = init in
+  let subs = many @@ or_else init @@ or_else digit dot in
   let* pos = current_position in
-  let* cs = subs in
-  let obj s = Obj.SymM (Obj.Symbol s, pos) in
+  let* c = init in
+  let* cs = if c = '+' || c = '-' then return [] else subs in
+  let obj s = Obj.symbol ~meta:pos s in
   c :: cs |> string_of_chars |> obj |> return
 
 let rec list_literal () =
-  let* d_char = one_of ['('; '['] in
   let* pos = current_position in
+  let* d_char = one_of ['('; '['] in
   let* content = separated_plus ~sep:spaces (lisp ()) in
   let* _ = character (if d_char = '(' then ')' else ']') in
-  return @@ Obj.ConsM (content, pos)
+  return @@ Obj.list ~meta:pos content
 
 and lisp () =
   L.fold_left or_else null
@@ -240,11 +260,14 @@ and lisp () =
 
 let lisp_parser = lisp () |> separated_many ~sep:spaces |> parse_all
 
-let parse_lisp str = lisp_parser str |> Result.map snd
+let result_map = Stdlib.Result.map (* to avoild conflict with ppx rewriters *)
+
+let parse_lisp ?source_name str =
+  lisp_parser ?source_name str |> result_map snd
 
 let sentences =
   let word = fmap string_of_chars (plus alphanumeric) in
   let sentence = separated_plus ~sep:spaces word in
   separated_many ~sep:dot sentence
 
-let parse_sentences str = parse_all sentences str |> Result.map snd
+let parse_sentences str = parse_all sentences str |> result_map snd

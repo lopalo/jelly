@@ -1,0 +1,13 @@
+(define > (lambda [n] true))
+(define + (lambda [n] 0))
+(define cons (lambda [h t] ()))
+
+(define make-num-seq
+  (lambda [fn n]
+    (if (> n 100)
+      ()
+      (cons n (make-num-seq (fn zzz))))
+    (define zzz 777)))
+
+
+(define num-seq (make-num-seq (lambda [n] (+ 10 n)) 0))

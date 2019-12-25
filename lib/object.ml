@@ -1,15 +1,12 @@
 module S = String
 module L = List
+module Expr = Expression
 
 let format = Printf.sprintf
 
-type symbol = Symbol of string [@@unboxed]
-
-type position =
-  { line_number : int;
-    column_number : int }
-
-type meta = position
+(* TODO: Closure - a procedure created by interpreter *)
+(*       Function - a wrapper over OCaml function *)
+(* let procedure = Closure | Function  *)
 
 type t =
   | Null
@@ -18,14 +15,21 @@ type t =
   | Float of float
   | Char of char
   | Str of string
-  | Sym of symbol
-  | SymM of symbol * meta
-  | Cons of t list
-  | ConsM of t list * meta
+  | Sym of Expr.Symbol.t * Common.meta option
+  | Cons of t list * Common.meta option
 
+(* TODO *)
+(* | Procedure of procedure *)
 (* | Vec of t array *)
 (* | HashTable   *)
 (* | Record   *)
+
+let symbol ?meta name = Sym (Expr.Symbol.Symbol name, meta)
+
+let list ?meta objs =
+  match objs with
+  | [] -> Null
+  | _ -> Cons (objs, meta)
 
 let char_to_string = function
   | '\n' -> "\\newline"
@@ -41,18 +45,15 @@ let rec to_string = function
   | Float f -> string_of_float f
   | Char c -> char_to_string c
   | Str s -> "\"" ^ S.escaped s ^ "\""
-  | Sym (Symbol s)
-  | SymM (Symbol s, _) ->
-      s
-  | Cons objs
-  | ConsM (objs, _) ->
-      "(" ^ (L.map to_string objs |> S.concat " ") ^ ")"
+  | Sym (Symbol s, _) -> s
+  | Cons (objs, _) -> "(" ^ (L.map to_string objs |> S.concat " ") ^ ")"
 
+(* TODO *)
 (* | Vec _ -> "#vec()" *)
 (* | HashTable -> "#hmap()" *)
 (* | Record -> "#rec:record-name" *)
 
-let rec is_equal obj obj' =
+let rec equal obj obj' =
   if obj == obj' then true
   else
     match (obj, obj') with
@@ -62,70 +63,53 @@ let rec is_equal obj obj' =
     | Float f, Float f' -> Float.equal f f'
     | Char c, Char c' -> Char.equal c c'
     | Str s, Str s' -> S.equal s s'
-    | Sym (Symbol s), Sym (Symbol s')
-    | Sym (Symbol s), SymM (Symbol s', _)
-    | SymM (Symbol s, _), Sym (Symbol s')
-    | SymM (Symbol s, _), SymM (Symbol s', _) ->
-        S.equal s s'
-    | Cons objs, Cons objs'
-    | Cons objs, ConsM (objs', _)
-    | ConsM (objs, _), Cons objs'
-    | ConsM (objs, _), ConsM (objs', _) ->
-        is_eq_lists objs objs'
+    | Sym (Symbol s, _), Sym (Symbol s', _) -> S.equal s s'
+    | Cons (objs, _), Cons (objs', _) -> equal_lists objs objs'
     | _ -> false
 
-and is_eq_lists objs objs' =
+and equal_lists objs objs' =
   match (objs, objs') with
-  | x :: xs, y :: ys -> is_equal x y && is_eq_lists xs ys
+  | x :: xs, y :: ys -> equal x y && equal_lists xs ys
   | [], [] -> true
   | _ -> false
 
 let bad_arg header obj = invalid_arg @@ header ^ ": " ^ to_string obj
 
+let is_symbol = function
+  | Sym _ -> true
+  | _ -> false
+
 let cons head = function
-  | Null -> Cons [head]
-  | Cons tail
-  | ConsM (tail, _) ->
-      Cons (head :: tail)
+  | Null -> Cons ([head], None)
+  | Cons (tail, _) -> Cons (head :: tail, None)
   | o -> bad_arg "cons:2" o
 
 let car = function
-  | Cons (head :: _)
-  | ConsM (head :: _, _) ->
-      head
+  | Cons (head :: _, _) -> head
   | o -> bad_arg "car" o
 
 let cdr = function
-  | Cons (_ :: tail)
-  | ConsM (_ :: tail, _) -> (
+  | Cons (_ :: tail, _) -> (
     match tail with
     | [] -> Null
     | o :: _ -> o)
   | o -> bad_arg "cdr" o
 
 let copy_meta = function
-  | SymM (_, meta)
-  | ConsM (_, meta) -> (
+  | Sym (_, meta)
+  | Cons (_, meta) -> (
       function
-      | Sym s
-      | SymM (s, _) ->
-          SymM (s, meta)
-      | Cons p
-      | ConsM (p, _) ->
-          ConsM (p, meta)
-      | o -> bad_arg "copy-meta:2" o)
+      | Sym (s, _) -> Sym (s, meta)
+      | Cons (p, _) -> Cons (p, meta)
+      | o -> bad_arg "copy-meta:2:cannot-have-meta" o)
   | o -> bad_arg "copy-meta:1:no-meta" o
 
-let rec formatter ppf = function
+let rec pp ppf = function
   | Null -> Fmt.string ppf "()"
   | Bool b -> Fmt.bool ppf b
   | Int i -> Fmt.int ppf i
   | Float f -> Fmt.float ppf f
   | Char c -> Fmt.string ppf @@ char_to_string c
   | Str s -> Fmt.quote Fmt.string ppf @@ S.escaped s
-  | Sym (Symbol s)
-  | SymM (Symbol s, _) ->
-      Fmt.string ppf s
-  | Cons objs
-  | ConsM (objs, _) ->
-      Fmt.parens (Fmt.list ~sep:Fmt.sp (Fmt.box formatter)) ppf objs
+  | Sym (Symbol s, _) -> Fmt.string ppf s
+  | Cons (objs, _) -> Fmt.parens (Fmt.list ~sep:Fmt.sp (Fmt.box pp)) ppf objs

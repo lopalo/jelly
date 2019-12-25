@@ -6,3 +6,4 @@ break-cases = all
 break-separators = after
 indicate-nested-or-patterns = unsafe-no
 type-decl = sparse
+exp-grouping = preserve

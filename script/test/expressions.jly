@@ -1,0 +1,13 @@
+(define > ())
+(define + ())
+(define y ())
+(define cons ())
+
+(define make-num-seq
+  (lambda [fn n]
+    (define y (lambda [n] (fn n)))
+    (if (> n 100)
+      ()
+      (cons n (make-num-seq (y n))))))
+
+(define num-seq (make-num-seq (lambda [n] (+ 10 n)) 0))

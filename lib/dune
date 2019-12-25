@@ -1,3 +1,4 @@
 (library
  (name jelly)
- (libraries fmt))
+ (libraries fmt)
+ (preprocess (pps ppx_deriving.show ppx_deriving.eq)))
