@@ -4,10 +4,6 @@ module Expr = Expression
 
 let format = Printf.sprintf
 
-(* TODO: Closure - a procedure created by interpreter *)
-(*       Function - a wrapper over OCaml function *)
-(* let procedure = Closure | Function  *)
-
 type t =
   | Null
   | Bool of bool
@@ -17,12 +13,40 @@ type t =
   | Str of string
   | Sym of Expr.Symbol.t * Common.meta option
   | Cons of t list * Common.meta option
+  | Procedure of procedure
+
+and expression = t Expr.t
+
+and lambda = t Expr.lambda
+
+and variable = t ref
+
+and scope = variable Expr.SymbolMap.t
+
+and stack_frame =
+  { expression : expression;
+    scope : scope }
+
+and stack = stack_frame list
+
+and func =
+  | FunctionVariadic of (t list -> t)
+  | Function0 of (unit -> t)
+  | Function1 of (t -> t)
+  | Function2 of (t -> t -> t)
+  | Function3 of (t -> t -> t -> t)
 
 (* TODO *)
-(* | Procedure of procedure *)
 (* | Vec of t array *)
 (* | HashTable   *)
-(* | Record   *)
+and procedure =
+  | Function of func
+  | Closure of
+      { lambda : lambda;
+        scope : scope }
+
+(* TODO *)
+(* | Continuation of stack *)
 
 let symbol ?meta name = Sym (Expr.Symbol.Symbol name, meta)
 
@@ -47,11 +71,11 @@ let rec to_string = function
   | Str s -> "\"" ^ S.escaped s ^ "\""
   | Sym (Symbol s, _) -> s
   | Cons (objs, _) -> "(" ^ (L.map to_string objs |> S.concat " ") ^ ")"
+  | Procedure _ -> "#procedure"
 
 (* TODO *)
-(* | Vec _ -> "#vec()" *)
-(* | HashTable -> "#hmap()" *)
-(* | Record -> "#rec:record-name" *)
+(* | Vec _ -> "#vec(...)" *)
+(* | HashTable -> "#hmap(...)" *)
 
 let rec equal obj obj' =
   if obj == obj' then true
@@ -73,36 +97,11 @@ and equal_lists objs objs' =
   | [], [] -> true
   | _ -> false
 
-let bad_arg header obj = invalid_arg @@ header ^ ": " ^ to_string obj
-
-let is_symbol = function
-  | Sym _ -> true
-  | _ -> false
-
-let cons head = function
-  | Null -> Cons ([head], None)
-  | Cons (tail, _) -> Cons (head :: tail, None)
-  | o -> bad_arg "cons:2" o
-
-let car = function
-  | Cons (head :: _, _) -> head
-  | o -> bad_arg "car" o
-
-let cdr = function
-  | Cons (_ :: tail, _) -> (
-    match tail with
-    | [] -> Null
-    | o :: _ -> o)
-  | o -> bad_arg "cdr" o
-
-let copy_meta = function
-  | Sym (_, meta)
-  | Cons (_, meta) -> (
-      function
-      | Sym (s, _) -> Sym (s, meta)
-      | Cons (p, _) -> Cons (p, meta)
-      | o -> bad_arg "copy-meta:2:cannot-have-meta" o)
-  | o -> bad_arg "copy-meta:1:no-meta" o
+let is_true = function
+  | Null
+  | Bool false ->
+      false
+  | _ -> true
 
 let rec pp ppf = function
   | Null -> Fmt.string ppf "()"
@@ -113,3 +112,10 @@ let rec pp ppf = function
   | Str s -> Fmt.quote Fmt.string ppf @@ S.escaped s
   | Sym (Symbol s, _) -> Fmt.string ppf s
   | Cons (objs, _) -> Fmt.parens (Fmt.list ~sep:Fmt.sp (Fmt.box pp)) ppf objs
+  | Procedure _ -> Fmt.string ppf "#procedure"
+
+let meta = function
+  | Sym (_, meta)
+  | Cons (_, meta) ->
+      meta
+  | _ -> None

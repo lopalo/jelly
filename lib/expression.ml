@@ -5,6 +5,7 @@ module Symbol = struct
 end
 
 module SymbolSet = Common.MakeSet (Symbol)
+module SymbolMap = Map.Make (Symbol)
 
 type arguments =
   | Fixed of Symbol.t list
@@ -13,19 +14,17 @@ type arguments =
 
 type 'a t =
   | Value of 'a
-  | Identifier of Symbol.t * Common.meta option
+  | Identifier of
+      { name : Symbol.t;
+        meta : Common.meta option }
   | If of
       { condition : 'a t;
         then_expr : 'a t;
         else_expr : 'a t }
-  | Lambda of
-      { arguments : arguments;
-        closure_names : SymbolSet.t;
-        expressions : 'a t list;
-        meta : Common.meta option }
+  | Lambda of 'a lambda
   | Application of
       { expressions : 'a t list;
-        evaluated_expressions : 'a t list;
+        computed_values : 'a list;
         meta : Common.meta option }
   | Define of
       { name : Symbol.t;
@@ -35,9 +34,16 @@ type 'a t =
       { name : Symbol.t;
         expression : 'a t;
         meta : Common.meta option }
+
+and 'a lambda =
+  { arguments : arguments;
+    closure_names : SymbolSet.t;
+    expressions : 'a t list;
+    meta : Common.meta option }
 [@@deriving show, eq]
 
 (* TODO *)
 (* | DefineSyntax of *)
 (*     { name : symbol; *)
 (*       expression : 'a t } *)
+(* | Begin of expressions : 'a t *)

@@ -1,10 +1,9 @@
 (executable
  (name run_tests)
- (libraries
-  alcotest
-  jelly))
+ (libraries alcotest jelly))
 
 (alias
  (name runtest)
  (deps run_tests.exe)
- (action (run %{deps} --color=always)))
+ (action
+  (run %{deps} --color=always)))

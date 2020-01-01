@@ -5,7 +5,8 @@
 (define make-num-seq
   (lambda [fn n]
     (if (> n 100)
-      (define fn "+++++++")
-      (cons n (make-num-seq (fn n))))))
+      ()
+      (cons n (make-num-seq (fn n))))
+    (define fn "+++++++")))
 
 (define num-seq (make-num-seq (lambda [n] (+ 10 n)) 0))
