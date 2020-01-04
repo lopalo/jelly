@@ -53,6 +53,7 @@ and compile_lambda obj = function
   | args :: first_form :: rest_forms ->
       let arguments =
         match args with
+        | Null -> Expression.Fixed []
         | Sym (s, _) -> Expression.Variadic s
         | Cons (objs, _) ->
             Expression.Fixed
@@ -202,7 +203,7 @@ let compile_top_level objs =
     in
     let empty = SymbolSet.empty in
     let expressions, outer_names =
-      resolve_names ~definitions:empty ~local_definitions:empty
+      resolve_names ~definitions:Core.definitions ~local_definitions:empty
         ~local_names:empty expressions
     in
     Ok

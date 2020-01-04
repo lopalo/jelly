@@ -167,7 +167,7 @@ let parse_all parser ?(source_name = "no source") input =
 
 (* TODO: parse comments  starting with ; *)
 
-let null = fmap (Fun.const Obj.Null) (string "()")
+let null = fmap (Fun.const Obj.Null) (or_else (string "()") (string "[]"))
 
 let boolean =
   let* s = or_else (string "true") (string "false") in

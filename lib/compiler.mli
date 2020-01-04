@@ -7,6 +7,8 @@ type error =
 
 val pp_error : error Fmt.t
 
+val show_error : error -> string
+
 val equal_error : error -> error -> bool
 
 val compile_top_level : Object.t list -> (t, error) result

@@ -5,7 +5,7 @@ module Cmp = Jelly.Compiler
 
 let symbol name = Expr.Symbol.Symbol name
 
-let symbol_set = Expr.SymbolSet.of_list
+let symbols = Expr.SymbolSet.of_list
 
 let check =
   let open A in
@@ -42,7 +42,7 @@ let expressions () =
                      Lambda
                        { arguments = Fixed [symbol "fn"; symbol "n"];
                          closure_names =
-                           symbol_set
+                           symbols
                              [symbol ">"; symbol "cons"; symbol "make-num-seq"];
                          expressions =
                            [ Define
@@ -50,7 +50,7 @@ let expressions () =
                                  expression =
                                    Lambda
                                      { arguments = Fixed [symbol "n"];
-                                       closure_names = symbol_set [symbol "fn"];
+                                       closure_names = symbols [symbol "fn"];
                                        expressions =
                                          [ Application
                                              { expressions =
@@ -100,7 +100,7 @@ let expressions () =
                            [ identifier "make-num-seq" 12 17;
                              Lambda
                                { arguments = Fixed [symbol "n"];
-                                 closure_names = symbol_set [symbol "+"];
+                                 closure_names = symbols [symbol "+"];
                                  expressions =
                                    [ Application
                                        { expressions =

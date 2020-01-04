@@ -1,0 +1,21 @@
+(define foo
+  (lambda [x y z]
+    (+ 1 2)
+    (define bar
+      (if z
+        (lambda [a b]
+          (list
+            (lambda [a x] (list a b x foo))
+            (lambda [b y]
+              (define z 400)
+              (list
+                bar
+                (if y (- z y) (- y x))))))
+        ()))
+    (/ 5 2)
+    bar))
+
+(define f (foo 1 2 3))
+
+(cons f (f \a \b))
+

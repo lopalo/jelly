@@ -1,0 +1,22 @@
+(define fn
+  (lambda []
+    (define foo ())
+    (define bar ())
+    (define baz ())
+    (set! foo
+      (lambda [n]
+        (define x (/ n 2))
+        (if (= x (ceiling x))
+           (bar n)
+           (baz n))))
+    (set! bar
+      (lambda [n]
+        (if (>= n 1000000)
+          n
+          (foo (+ 1 n)))))
+    (set! baz
+      (lambda [n]
+        (foo (+ 1 (+ (* 2 2) n)))))
+    (foo 0)))
+
+(fn)

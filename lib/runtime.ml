@@ -118,4 +118,9 @@ let execute_top_level expression =
   let expression =
     Application {expressions = [expression]; computed_values = []; meta = None}
   in
-  execute [] Scope.empty expression
+  execute [] (Core.make_scope ()) expression
+
+let scope_to_definitions scope =
+  Scope.fold
+    (fun name _ names -> SymbolSet.add name names)
+    scope SymbolSet.empty
