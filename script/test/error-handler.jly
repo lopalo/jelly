@@ -1,0 +1,10 @@
+(define fn
+  (lambda []
+    (set-error-handler!
+      (lambda  [error]
+        (reset-error-handler!)
+        (list 'x 'y error)))
+    (display (cons 1 (+ 2 'x)))
+    '(a b c)))
+
+(fn)

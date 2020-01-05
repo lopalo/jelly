@@ -3,7 +3,8 @@
     (define y (lambda [n] (fn n)))
     (if (> n 50)
       (/ 3 (fail "end"))
-      (cons n (make-num-seq fn (y n))))))
+      (cons n (make-num-seq fn (y n))))
+    (display "must not be displayed")))
 
 (define num-seq (make-num-seq (lambda [n] (+ 10 n)) 0))
 

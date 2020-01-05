@@ -1,8 +1,7 @@
 type error =
-  (* TODO *)
-  (* CompilationError of Compiler.error *)
   | RuntimeError of
       { error : string;
+        stack_size : int;
         stack_trace : Common.meta list }
 
 val pp_error : error Fmt.t

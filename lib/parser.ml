@@ -114,6 +114,7 @@ let first x _ = x
 
 let second _ x = x
 
+(* TODO: limited back tracking so that the parser can fail faster  *)
 let or_else parser parser' =
   { parse =
       (fun state cont ->

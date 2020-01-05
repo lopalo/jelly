@@ -44,8 +44,8 @@ let copy_meta = function
       function
       | Sym (s, _) -> Ok (Sym (s, meta))
       | Cons (p, _) -> Ok (Cons (p, meta))
-      | o -> bad_arg "copy-meta.2.cannot-have-meta" o)
-  | o -> Fun.const @@ bad_arg "copy-meta.1.no-meta" o
+      | o -> bad_arg "copy-meta.2.must-support-meta" o)
+  | o -> Fun.const @@ bad_arg "copy-meta.1.must-support-meta" o
 
 let string_to_symbol = function
   | Str s -> Ok (Sym (Expression.Symbol.Symbol s, None))
@@ -195,7 +195,9 @@ let objects =
       (">=", procedure (Function2 greater_than_eq));
       ("<", procedure (Function2 less_than));
       ("<=", procedure (Function2 less_than_eq));
-      ("fail", procedure (Function1 fail)) ]
+      ("fail", procedure (Function1 fail));
+      ("set-error-handler!", Null);
+      ("reset-error-handler!", Null) ]
 
 let definitions =
   List.fold_left

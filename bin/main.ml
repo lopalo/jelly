@@ -52,7 +52,7 @@ let execute expression =
   | Ok obj -> Some obj
   | Error err ->
       (match err with
-      | RuntimeError {error; stack_trace} ->
+      | RuntimeError {error; stack_trace; _} ->
           print_endline error;
           List.iter
             (fun meta -> print_meta (Some meta); print_newline ())
