@@ -2,17 +2,20 @@ module A = Alcotest
 module Obj = Jelly.Object
 module RT = Jelly.Runtime
 
-let check = A.(testable Obj.pp Obj.equal |> check)
+let check =
+  let open A in
+  result (testable Obj.pp Obj.equal) (testable RT.pp_error RT.equal_error)
+  |> check
 
 let lambda_application () =
   check "tuple"
-    (Common.obj_of_str "(\"result\" 7 3 17)")
+    (Ok (Common.obj_of_str "(\"result\" 7 3 17)"))
     (Common.execute_str
        "((lambda [x] (define y 3) (list \"result\" x y (+ (* x 2) y))) 7)")
 
 let make_number_sequence () =
   check "list of integers"
-    (Common.obj_of_str "(0 10 20 30 40 50 60 70 80 90 100)")
+    (Ok (Common.obj_of_str "(0 10 20 30 40 50 60 70 80 90 100)"))
     (Common.execute_test_script "number-sequence.jly")
 
 let closure () =
@@ -28,18 +31,84 @@ let closure () =
     [ symbols [sym "list"; sym "-"; sym "foo"; sym "bar"; sym "x"];
       symbols [sym "list"; sym "foo"; sym "b"];
       symbols [sym "list"; sym "bar"; sym "-"; sym "x"] ]
-    (let[@warning "-8"] (Obj.Cons (procedures, _)) =
+    (let[@warning "-8"] (Ok (Obj.Cons (procedures, _))) =
        Common.execute_test_script "closure.jly"
      in
      List.map scope_names procedures)
 
 let tail_call_elimination () =
-  check "integer"
-    (Common.obj_of_str "1000002")
+  check "error"
+    (Error
+       (RuntimeError
+          { error = "100002";
+            stack_trace =
+              [ { source_name = "tail-call.jly";
+                  line_number = 15;
+                  column_number = 10 } ] }))
     (Common.execute_test_script "tail-call.jly")
+
+let stack_trace () =
+  check "error"
+    (Error
+       (RuntimeError
+          { error = "end";
+            stack_trace =
+              (let m line_number column_number =
+                 ({source_name = "stack-trace.jly"; line_number; column_number}
+                   : Jelly.Common.meta)
+               in
+               [m 4 11; m 4 6; m 5 6; m 5 6; m 5 6; m 5 6; m 5 6; m 5 6]) }))
+    (Common.execute_test_script "stack-trace.jly")
+
+let bad_arg () =
+  check "error"
+    (Error
+       (RuntimeError
+          { error = "bad-arg.cons.2: a";
+            stack_trace =
+              [{source_name = "no source"; line_number = 0; column_number = 27}]
+          }))
+    (Common.execute_str "((lambda [x] (define y 'a) (cons x y)) 7)")
+
+let wrong_lambda_arguments_number () =
+  check "error"
+    (Error
+       (RuntimeError
+          { error = "Closure takes 1 arguments";
+            stack_trace =
+              [{source_name = "no source"; line_number = 0; column_number = 0}]
+          }))
+    (Common.execute_str "((lambda [x] (define y 'a) (cons x y)) 7 2)")
+
+let wrong_function_arguments_number () =
+  check "error"
+    (Error
+       (RuntimeError
+          { error = "Function takes 2 arguments";
+            stack_trace =
+              [{source_name = "no source"; line_number = 0; column_number = 27}]
+          }))
+    (Common.execute_str "((lambda [x] (define y 'a) (cons x)) 7)")
+
+let non_procedure_application () =
+  check "error"
+    (Error
+       (RuntimeError
+          { error = "a is not a procedure";
+            stack_trace =
+              [{source_name = "no source"; line_number = 0; column_number = 27}]
+          }))
+    (Common.execute_str "((lambda [x] (define y 'a) (y x)) 7)")
 
 let tests =
   [ A.test_case "lambda application" `Quick lambda_application;
     A.test_case "make number sequence" `Quick make_number_sequence;
     A.test_case "closure" `Quick closure;
-    A.test_case "tail call elimination" `Slow tail_call_elimination ]
+    A.test_case "tail call elimination" `Quick tail_call_elimination;
+    A.test_case "stack trace" `Quick stack_trace;
+    A.test_case "bad arg" `Quick bad_arg;
+    A.test_case "wrong lambda arguments number" `Quick
+      wrong_lambda_arguments_number;
+    A.test_case "wrong function arguments number" `Quick
+      wrong_function_arguments_number;
+    A.test_case "non procedure application" `Quick non_procedure_application ]

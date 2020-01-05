@@ -69,7 +69,7 @@ let expressions () =
                                            Value (Int 100) ];
                                        computed_values = [];
                                        meta = m 8 8 };
-                                 then_expr = Value Null;
+                                 then_expr = Value (Obj.list [Int 1; Int 2]);
                                  else_expr =
                                    Application
                                      { expressions =

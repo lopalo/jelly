@@ -1,5 +1,6 @@
 (define fn
   (lambda []
+    ;mutually recursive tail calls
     (define foo ())
     (define bar ())
     (define baz ())
@@ -7,12 +8,12 @@
       (lambda [n]
         (define x (/ n 2))
         (if (= x (ceiling x))
-           (bar n)
-           (baz n))))
+          (bar n)
+          (baz n))))
     (set! bar
       (lambda [n]
-        (if (>= n 1000000)
-          n
+        (if (>= n 100000)
+          (fail (object->string n))
           (foo (+ 1 n)))))
     (set! baz
       (lambda [n]

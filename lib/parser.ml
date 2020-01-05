@@ -147,8 +147,6 @@ and separated_plus ~sep parser =
 
 let alphanumeric = or_else letter digit
 
-let spaces = plus space
-
 let string s =
   let char_parsers = chars_of_string s |> L.map character in
   L.fold_right (and_then ~combine:L.cons) char_parsers (return [])
@@ -165,7 +163,14 @@ let parse_all parser ?(source_name = "no source") input =
     {input; offset = 0; source_name; line_number = 0; column_number = 0}
     (fun state x -> Ok (state, x))
 
-(* TODO: parse comments  starting with ; *)
+let comment =
+  let* c = character ';' in
+  let* _ = many @@ none_of ['\n'] in
+  return c
+
+let lisp_space = or_else space comment
+
+let lisp_spaces = plus lisp_space
 
 let null = fmap (Fun.const Obj.Null) (or_else (string "()") (string "[]"))
 
@@ -243,9 +248,15 @@ let symbol =
 let rec list_literal () =
   let* pos = current_position in
   let* d_char = one_of ['('; '['] in
-  let* content = separated_plus ~sep:spaces (lisp ()) in
+  let* content = separated_plus ~sep:lisp_spaces (lisp ()) in
   let* _ = character (if d_char = '(' then ')' else ']') in
   return @@ Obj.list ~meta:pos content
+
+and quote () =
+  let* pos = current_position in
+  let* _ = character '\'' in
+  let* obj = lisp () in
+  return @@ Obj.list ~meta:pos [Obj.symbol "quote"; obj]
 
 and lisp () =
   L.fold_left or_else null
@@ -256,9 +267,10 @@ and lisp () =
       string_literal;
       symbol;
       list_literal ();
+      quote ();
       fmap (Fun.const Obj.Null) unexpected_char ]
 
-let lisp_parser = lisp () |> separated_many ~sep:spaces |> parse_all
+let lisp_parser = lisp () |> separated_many ~sep:lisp_spaces |> parse_all
 
 let result_map = Stdlib.Result.map (* to avoild conflict with ppx rewriters *)
 
@@ -267,7 +279,7 @@ let parse_lisp ?source_name str =
 
 let sentences =
   let word = fmap string_of_chars (plus alphanumeric) in
-  let sentence = separated_plus ~sep:spaces word in
+  let sentence = separated_plus ~sep:(plus space) word in
   separated_many ~sep:dot sentence
 
 let parse_sentences str = parse_all sentences str |> result_map snd

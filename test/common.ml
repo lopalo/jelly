@@ -25,7 +25,7 @@ let obj_of_str str =
 let execute_str str =
   match obj_of_str str |> (fun x -> [x]) |> Cmp.compile_top_level with
   | Ok r -> RT.execute_top_level r
-  | _ -> failwith @@ "Cannot cannot compile string: " ^ str
+  | _ -> failwith @@ "Cannot compile string: " ^ str
 
 let obj =
   let open Jelly.Object in

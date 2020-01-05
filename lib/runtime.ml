@@ -4,6 +4,14 @@ module Obj = Object
 
 let format = Printf.sprintf
 
+type error =
+  (* TODO *)
+  (* CompilationError of Compiler.error *)
+  | RuntimeError of
+      { error : string;
+        stack_trace : Common.meta list }
+[@@deriving show, eq]
+
 let function_arguments_number = function
   | Obj.FunctionVariadic _ -> "*"
   | Function0 _ -> "0"
@@ -14,6 +22,20 @@ let function_arguments_number = function
 let closure_arguments_number = function
   | Fixed names -> List.length names |> string_of_int
   | Variadic _ -> "*"
+
+let application_error error meta stack =
+  let stack =
+    ({ expression = Application {expressions = []; computed_values = []; meta};
+       scope = Scope.empty }
+      : Obj.stack_frame)
+    :: stack
+  in
+  let meta (stack_frame : Obj.stack_frame) =
+    match stack_frame.expression with
+    | Application {meta; _} -> meta
+    | _ -> None
+  in
+  Error (RuntimeError {error; stack_trace = List.filter_map meta stack})
 
 let rec execute (stack : Obj.stack) scope = function
   | Value obj -> return stack obj
@@ -37,31 +59,38 @@ let rec execute (stack : Obj.stack) scope = function
   | (Set {expression; _} as e) ->
       execute ({expression = e; scope} :: stack) scope expression
 
-and execute_procedure stack = function
-  (* TODO: proper error handling: it must return (Obj.t, (string, [stack_trace])) result *)
-  (*       where stack_trace - meta list *)
+and execute_procedure stack meta = function
   | [] -> return stack Obj.Null
   | obj :: args -> (
     match obj with
     | Obj.Procedure proc -> (
       match proc with
-      | Function func -> return stack @@ execute_function (func, args)
-      | Closure {lambda = {arguments; _} as lambda; scope} ->
-          let scope =
+      | Function func -> (
+        match execute_function (func, args) with
+        | Ok obj -> return stack obj
+        | Error error -> application_error error meta stack)
+      | Closure {lambda = {arguments; _} as lambda; scope} -> (
+          let scope_res =
             match arguments with
             | Fixed names ->
                 if List.length names <> List.length args then
-                  failwith
-                  @@ format "Closure takes %s arguments"
-                  @@ closure_arguments_number arguments
+                  Error
+                    (format "Closure takes %s arguments"
+                       (closure_arguments_number arguments))
                 else
-                  List.fold_left2
-                    (fun scope name arg -> Scope.add name (ref arg) scope)
-                    scope names args
-            | Variadic name -> Scope.add name (ref (Obj.list args)) scope
+                  Ok
+                    (List.fold_left2
+                       (fun scope name arg -> Scope.add name (ref arg) scope)
+                       scope names args)
+            | Variadic name -> Ok (Scope.add name (ref (Obj.list args)) scope)
           in
-          execute_lambda stack scope lambda)
-    | _ -> failwith @@ Obj.to_string obj ^ " is not a procedure")
+          match scope_res with
+          | Ok scope -> execute_lambda stack scope lambda
+          | Error error -> application_error error meta stack))
+    | _ ->
+        application_error
+          (Obj.to_string obj ^ " is not a procedure")
+          meta stack)
 
 and execute_function = function
   | FunctionVariadic f, args -> f args
@@ -70,9 +99,8 @@ and execute_function = function
   | Function2 f, [a; b] -> f a b
   | Function3 f, [a; b; c] -> f a b c
   | func, _ ->
-      failwith
-      @@ format "Function takes %s arguments"
-      @@ function_arguments_number func
+      Error
+        (format "Function takes %s arguments" (function_arguments_number func))
 
 and execute_lambda stack scope ({expressions; _} as lambda : Obj.lambda) =
   let make_scope = function
@@ -90,7 +118,7 @@ and execute_lambda stack scope ({expressions; _} as lambda : Obj.lambda) =
 
 and return stack obj =
   match stack with
-  | [] -> obj
+  | [] -> Ok obj
   | {expression; scope} :: stack -> (
     match expression with
     | Value _ -> failwith "Cannot return to a value"
@@ -99,10 +127,10 @@ and return stack obj =
         (if Obj.is_true obj then then_expr else else_expr)
         |> execute stack scope
     | Lambda lambda -> execute_lambda stack scope lambda
-    | Application ({expressions; computed_values; _} as e) -> (
+    | Application ({expressions; computed_values; meta} as e) -> (
         let computed_values = obj :: computed_values in
         match expressions with
-        | [] -> execute_procedure stack @@ List.rev computed_values
+        | [] -> execute_procedure stack meta @@ List.rev computed_values
         | argument :: expressions ->
             execute
               ({ expression = Application {e with computed_values; expressions};

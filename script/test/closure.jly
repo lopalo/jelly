@@ -10,7 +10,8 @@
               (define z 400)
               (list
                 bar
-                (if y (- z y) (- y x))))))
+                (if y (- z y) (- y x)))
+              '(display x y z a b))))
         ()))
     (/ 5 2)
     bar))

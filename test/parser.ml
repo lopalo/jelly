@@ -47,6 +47,8 @@ let test_lisp () =
              Str "dd";
              list [Str "ddd\"qqq"; Char 'n'; Float 4.5] ];
          Null;
+         list [symbol "quote"; symbol "p"];
+         list [symbol "quote"; list [symbol "a"; symbol "b"]];
          Str "aaa\nbbb\ncccn\nddd" ]))
     (Common.parse_test_script "syntax.jly")
 

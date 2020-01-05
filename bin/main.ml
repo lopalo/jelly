@@ -47,7 +47,17 @@ let compile objs =
           print_meta meta);
       print_newline (); None
 
-let execute = Jelly.Runtime.execute_top_level
+let execute expression =
+  match Jelly.Runtime.execute_top_level expression with
+  | Ok obj -> Some obj
+  | Error err ->
+      (match err with
+      | RuntimeError {error; stack_trace} ->
+          print_endline error;
+          List.iter
+            (fun meta -> print_meta (Some meta); print_newline ())
+            stack_trace);
+      print_newline (); None
 
 let () =
   let pretty = ref false in
@@ -67,7 +77,8 @@ let () =
       (fun objs -> objs :: !scripts |> List.rev |> List.concat)
       (parse_string "command line" str)
     |> (Fun.flip Option.bind) compile
-    |> Option.map execute |> Option.map print_object |> ignore
+    |> (Fun.flip Option.bind) execute
+    |> Option.map print_object |> ignore
   in
   let specs =
     [ ("-pretty", Arg.Set pretty, "Pretty-print the result");

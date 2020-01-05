@@ -29,12 +29,14 @@ and stack_frame =
 
 and stack = stack_frame list
 
+and func_res = (t, string) result
+
 and func =
-  | FunctionVariadic of (t list -> t)
-  | Function0 of (unit -> t)
-  | Function1 of (t -> t)
-  | Function2 of (t -> t -> t)
-  | Function3 of (t -> t -> t -> t)
+  | FunctionVariadic of (t list -> func_res)
+  | Function0 of (unit -> func_res)
+  | Function1 of (t -> func_res)
+  | Function2 of (t -> t -> func_res)
+  | Function3 of (t -> t -> t -> func_res)
 
 (* TODO *)
 (* | Vec of t array *)
