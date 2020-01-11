@@ -3,7 +3,7 @@ module Expr = Jelly.Expression
 module Obj = Jelly.Object
 module Cmp = Jelly.Compiler
 
-let symbol name = Expr.Symbol.Symbol name
+let sym name = Expr.symbol name
 
 let symbols = Expr.SymbolSet.of_list
 
@@ -18,102 +18,96 @@ let expressions () =
   check "compiled expressions"
     (Ok
        (let open Expr in
-       let empty = SymbolSet.empty in
        let m line_number column_number =
          Some
            ({source_name = "expressions.jly"; line_number; column_number}
              : Jelly.Common.meta)
        in
        let identifier name line_number column_number =
-         Identifier {name = symbol name; meta = m line_number column_number}
+         Identifier {name = sym name; meta = m line_number column_number}
        in
        Lambda
          { arguments = Fixed [];
-           closure_names = empty;
+           closure_names = Jelly.Core.definitions;
            expressions =
-             [ Define {name = symbol ">"; expression = Value Null; meta = m 0 0};
-               Define {name = symbol "+"; expression = Value Null; meta = m 1 0};
-               Define {name = symbol "y"; expression = Value Null; meta = m 2 0};
+             [ Define {name = sym "y"; expression = Value Null; meta = m 0 0};
                Define
-                 {name = symbol "cons"; expression = Value Null; meta = m 3 0};
-               Define
-                 { name = symbol "make-num-seq";
+                 { name = sym "make-num-seq";
                    expression =
                      Lambda
-                       { arguments = Fixed [symbol "fn"; symbol "n"];
+                       { arguments = Fixed [sym "fn"; sym "n"];
                          closure_names =
-                           symbols
-                             [symbol ">"; symbol "cons"; symbol "make-num-seq"];
+                           symbols [sym ">"; sym "cons"; sym "make-num-seq"];
                          expressions =
                            [ Define
-                               { name = symbol "y";
+                               { name = sym "y";
                                  expression =
                                    Lambda
-                                     { arguments = Fixed [symbol "n"];
-                                       closure_names = symbols [symbol "fn"];
+                                     { arguments = Fixed [sym "n"];
+                                       closure_names = symbols [sym "fn"];
                                        expressions =
                                          [ Application
                                              { expressions =
-                                                 [ identifier "fn" 7 27;
-                                                   identifier "n" 7 30 ];
+                                                 [ identifier "fn" 4 27;
+                                                   identifier "n" 4 30 ];
                                                computed_values = [];
-                                               meta = m 7 26 } ];
-                                       meta = m 7 14 };
-                                 meta = m 7 4 };
+                                               meta = m 4 26 } ];
+                                       meta = m 4 14 };
+                                 meta = m 4 4 };
                              If
                                { condition =
                                    Application
                                      { expressions =
-                                         [ identifier ">" 8 9;
-                                           identifier "n" 8 11;
+                                         [ identifier ">" 5 9;
+                                           identifier "n" 5 11;
                                            Value (Int 100) ];
                                        computed_values = [];
-                                       meta = m 8 8 };
+                                       meta = m 5 8 };
                                  then_expr = Value (Obj.list [Int 1; Int 2]);
                                  else_expr =
                                    Application
                                      { expressions =
-                                         [ identifier "cons" 10 7;
-                                           identifier "n" 10 12;
+                                         [ identifier "cons" 7 7;
+                                           identifier "n" 7 12;
                                            Application
                                              { expressions =
-                                                 [ identifier "make-num-seq" 10
+                                                 [ identifier "make-num-seq" 7
                                                      15;
                                                    Application
                                                      { expressions =
-                                                         [ identifier "y" 10 29;
-                                                           identifier "n" 10 31
+                                                         [ identifier "y" 7 29;
+                                                           identifier "n" 7 31
                                                          ];
                                                        computed_values = [];
-                                                       meta = m 10 28 } ];
+                                                       meta = m 7 28 } ];
                                                computed_values = [];
-                                               meta = m 10 14 } ];
+                                               meta = m 7 14 } ];
                                        computed_values = [];
-                                       meta = m 10 6 } } ];
-                         meta = m 6 2 };
-                   meta = m 5 0 };
+                                       meta = m 7 6 } } ];
+                         meta = m 3 2 };
+                   meta = m 2 0 };
                Define
-                 { name = symbol "num-seq";
+                 { name = sym "num-seq";
                    expression =
                      Application
                        { expressions =
-                           [ identifier "make-num-seq" 12 17;
+                           [ identifier "make-num-seq" 9 17;
                              Lambda
-                               { arguments = Fixed [symbol "n"];
-                                 closure_names = symbols [symbol "+"];
+                               { arguments = Fixed [sym "n"];
+                                 closure_names = symbols [sym "+"];
                                  expressions =
                                    [ Application
                                        { expressions =
-                                           [ identifier "+" 12 43;
+                                           [ identifier "+" 9 43;
                                              Value (Int 10);
-                                             identifier "n" 12 48 ];
+                                             identifier "n" 9 48 ];
                                          computed_values = [];
-                                         meta = m 12 42 } ];
-                                 meta = m 12 30 };
+                                         meta = m 9 42 } ];
+                                 meta = m 9 30 };
                              Value (Int 0) ];
                          computed_values = [];
-                         meta = m 12 16 };
-                   meta = m 12 0 } ];
+                         meta = m 9 16 };
+                   meta = m 9 0 } ];
            meta = None }))
     (Common.compile_test_script "expressions.jly")
 
@@ -139,10 +133,10 @@ let undefined_name () =
   check "undefined name error"
     (Error
        (Cmp.UndefinedName
-          ( symbol "zzz",
+          ( sym "zzz",
             Some
               { source_name = "undefined-name.jly";
-                line_number = 8;
+                line_number = 4;
                 column_number = 32 } )))
     (Common.compile_test_script "undefined-name.jly")
 
@@ -150,10 +144,10 @@ let redefined_local_name () =
   check "duplicate local definition error"
     (Error
        (Cmp.DuplicateLocalDefinition
-          ( symbol "fn",
+          ( sym "fn",
             Some
               { source_name = "redefined-local-name.jly";
-                line_number = 9;
+                line_number = 5;
                 column_number = 4 } )))
     (Common.compile_test_script "redefined-local-name.jly")
 

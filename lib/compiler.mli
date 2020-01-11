@@ -11,4 +11,7 @@ val show_error : error -> string
 
 val equal_error : error -> error -> bool
 
-val compile_top_level : Object.t list -> (t, error) result
+val compile_top_level :
+  Expression.SymbolSet.t -> Object.t -> (t list, error) result
+
+val compile_top_level_lambda : Object.t list -> (t, error) result

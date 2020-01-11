@@ -20,7 +20,7 @@ let make_number_sequence () =
 
 let closure () =
   let module Symbols = Jelly.Expression.SymbolSet in
-  let sym name = Jelly.Expression.Symbol.Symbol name in
+  let sym name = Jelly.Expression.symbol name in
   let symbols = Symbols.of_list in
   let scope_names = function
     | Obj.Procedure (Closure {scope; _}) -> RT.scope_to_definitions scope
@@ -36,89 +36,83 @@ let closure () =
      in
      List.map scope_names procedures)
 
+let rt_error error_context = Error (RT.Runtime (RuntimeError error_context))
+
 let tail_call_elimination () =
   check "error"
-    (Error
-       (RuntimeError
-          { error = "100002";
-            stack_size = 0;
-            stack_trace =
-              [ { source_name = "tail-call.jly";
-                  line_number = 15;
-                  column_number = 10 } ] }))
+    (rt_error
+       { error = "100002";
+         stack_size = 0;
+         stack_trace =
+           [ { source_name = "tail-call.jly";
+               line_number = 15;
+               column_number = 10 } ] })
     (Common.execute_test_script "tail-call.jly")
 
 let stack_trace () =
   check "error"
-    (Error
-       (RuntimeError
-          { error = "end";
-            stack_size = 16;
-            stack_trace =
-              (let m line_number column_number =
-                 ({source_name = "stack-trace.jly"; line_number; column_number}
-                   : Jelly.Common.meta)
-               in
-               [m 4 11; m 1 2; m 1 2; m 1 2; m 1 2; m 1 2; m 1 2; m 1 2]) }))
+    (rt_error
+       { error = "end";
+         stack_size = 15;
+         stack_trace =
+           (let m line_number column_number =
+              ({source_name = "stack-trace.jly"; line_number; column_number}
+                : Jelly.Common.meta)
+            in
+            [m 4 11; m 1 2; m 1 2; m 1 2; m 1 2; m 1 2; m 1 2; m 1 2]) })
     (Common.execute_test_script "stack-trace.jly")
 
 let bad_arg () =
   check "error"
-    (Error
-       (RuntimeError
-          { error = "bad-arg.cons.2: a";
-            stack_size = 0;
-            stack_trace =
-              [{source_name = "no source"; line_number = 0; column_number = 27}]
-          }))
+    (rt_error
+       { error = "bad-arg.cons.2: a";
+         stack_size = 0;
+         stack_trace =
+           [{source_name = "no source"; line_number = 0; column_number = 27}]
+       })
     (Common.execute_str "((lambda [x] (define y 'a) (cons x y)) 7)")
 
 let wrong_lambda_arguments_number () =
   check "error"
-    (Error
-       (RuntimeError
-          { error = "Closure takes 1 arguments";
-            stack_size = 0;
-            stack_trace =
-              [{source_name = "no source"; line_number = 0; column_number = 0}]
-          }))
+    (rt_error
+       { error = "Closure takes 1 arguments";
+         stack_size = 0;
+         stack_trace =
+           [{source_name = "no source"; line_number = 0; column_number = 0}] })
     (Common.execute_str "((lambda [x] (define y 'a) (cons x y)) 7 2)")
 
 let wrong_function_arguments_number () =
   check "error"
-    (Error
-       (RuntimeError
-          { error = "Function takes 2 arguments";
-            stack_size = 0;
-            stack_trace =
-              [{source_name = "no source"; line_number = 0; column_number = 27}]
-          }))
+    (rt_error
+       { error = "Function takes 2 arguments";
+         stack_size = 0;
+         stack_trace =
+           [{source_name = "no source"; line_number = 0; column_number = 27}]
+       })
     (Common.execute_str "((lambda [x] (define y 'a) (cons x)) 7)")
 
 let non_procedure_application () =
   check "error"
-    (Error
-       (RuntimeError
-          { error = "a is not a procedure";
-            stack_size = 0;
-            stack_trace =
-              [{source_name = "no source"; line_number = 0; column_number = 27}]
-          }))
+    (rt_error
+       { error = "a is not a procedure";
+         stack_size = 0;
+         stack_trace =
+           [{source_name = "no source"; line_number = 0; column_number = 27}]
+       })
     (Common.execute_str "((lambda [x] (define y 'a) (y x)) 7)")
 
 let error_handler () =
   check "error"
-    (Error
-       (RuntimeError
-          { error = "bad-arg.display: (1 x y \"bad-args.+: 2, x\")";
-            stack_size = 1;
-            stack_trace =
-              [ { source_name = "error-handler.jly";
-                  line_number = 6;
-                  column_number = 4 };
-                { source_name = "error-handler.jly";
-                  line_number = 1;
-                  column_number = 2 } ] }))
+    (rt_error
+       { error = "bad-arg.display: (1 x y \"bad-args.+: 2, x\")";
+         stack_size = 1;
+         stack_trace =
+           [ { source_name = "error-handler.jly";
+               line_number = 6;
+               column_number = 4 };
+             { source_name = "error-handler.jly";
+               line_number = 1;
+               column_number = 2 } ] })
     (Common.execute_test_script "error-handler.jly")
 
 let tests =

@@ -33,7 +33,7 @@ let cdr = function
       Ok
         (match tail with
         | [] -> Null
-        | o :: _ -> o)
+        | tail -> Cons (tail, None))
   | o -> bad_arg "cdr" o
 
 let list objs = Ok (list ?meta:None objs)
@@ -48,7 +48,7 @@ let copy_meta = function
   | o -> Fun.const @@ bad_arg "copy-meta.1.must-support-meta" o
 
 let string_to_symbol = function
-  | Str s -> Ok (Sym (Expression.Symbol.Symbol s, None))
+  | Str s -> Ok (Sym (Expression.symbol s, None))
   | o -> bad_arg "string->symbol" o
 
 let is_symbol = function
@@ -155,6 +155,8 @@ let less_than_eq o o' =
   | Float f, Int i -> Ok (Bool (f <= float_of_int i))
   | o, o' -> bad_args "<=" [o; o']
 
+let not o = Ok (Bool (not (is_true o)))
+
 let fail = function
   | Str error -> Error error
   | o -> bad_arg "fail" o
@@ -167,7 +169,7 @@ let procedure f = Procedure (Function f)
 (* Must not contain mutable objects *)
 let objects =
   List.map
-    (fun (name, obj) -> (Expression.Symbol.Symbol name, obj))
+    (fun (name, obj) -> (Expression.symbol name, obj))
     [ ("object->string", procedure (Function1 obj_to_string));
       ("equal?", procedure (Function2 equal_object));
       ("display", procedure (Function1 display));
@@ -195,9 +197,13 @@ let objects =
       (">=", procedure (Function2 greater_than_eq));
       ("<", procedure (Function2 less_than));
       ("<=", procedure (Function2 less_than_eq));
+      ("not", procedure (Function1 not));
       ("fail", procedure (Function1 fail));
       ("set-error-handler!", Null);
-      ("reset-error-handler!", Null) ]
+      ("reset-error-handler!", Null);
+      ("apply", Procedure Apply);
+      ("expand-syntax", Procedure SyntaxExpander);
+      ("gensym", Null) ]
 
 let definitions =
   List.fold_left

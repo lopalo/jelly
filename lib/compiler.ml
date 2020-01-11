@@ -9,6 +9,8 @@ let meta = function
   | Object.Cons (_, meta) -> meta
   | _ -> None
 
+let flat_map f lst = List.map f lst |> List.flatten
+
 let rec compile ?(top_level = false) ?(lambda_level = false) obj =
   match obj with
   | Object.Null
@@ -17,11 +19,11 @@ let rec compile ?(top_level = false) ?(lambda_level = false) obj =
   | Float _
   | Char _
   | Str _ ->
-      Expression.Value obj
-  | Sym (name, meta) -> Identifier {name; meta}
+      [Expression.Value obj]
+  | Sym (name, meta) -> [Identifier {name; meta}]
   | Cons (objs, meta) -> (
     match objs with
-    | [] -> Value Null
+    | [] -> [Value Null]
     | operator :: args -> (
       match operator with
       | Sym (Symbol name, _) -> (
@@ -32,21 +34,24 @@ let rec compile ?(top_level = false) ?(lambda_level = false) obj =
         | "define" -> compile_define ~lambda_level obj args
         | "set!" -> compile_set obj args
         | "define-syntax" -> compile_define_syntax ~top_level obj args
+        | "begin" -> flat_map (compile ~top_level ~lambda_level) args
         | _ -> compile_application meta objs)
       | Cons _ -> compile_application meta objs
       | _ -> raise (InvalidFormExn obj)))
   | Procedure _ -> raise (InvalidFormExn obj)
 
+and compile' form = compile form |> List.hd
+
 and compile_quote obj = function
-  | [obj] -> Value obj
+  | [obj] -> [Value obj]
   | _ -> raise (InvalidFormExn obj)
 
 and compile_if obj = function
   | [condition; then_form; else_form] ->
-      If
-        { condition = compile condition;
-          then_expr = compile then_form;
-          else_expr = compile else_form }
+      [ If
+          { condition = compile' condition;
+            then_expr = compile' then_form;
+            else_expr = compile' else_form } ]
   | _ -> raise (InvalidFormExn obj)
 
 and compile_lambda obj = function
@@ -64,31 +69,33 @@ and compile_lambda obj = function
                  objs)
         | _ -> raise (InvalidFormExn obj)
       in
-      Lambda
-        { arguments;
-          closure_names = SymbolSet.empty;
-          expressions =
-            List.map (compile ~lambda_level:true) (first_form :: rest_forms);
-          meta = meta obj }
+      [ Lambda
+          { arguments;
+            closure_names = SymbolSet.empty;
+            expressions =
+              flat_map (compile ~lambda_level:true) (first_form :: rest_forms);
+            meta = meta obj } ]
   | _ -> raise (InvalidFormExn obj)
 
 and compile_application meta objs =
-  Application {expressions = List.map compile objs; computed_values = []; meta}
+  [ Application
+      {expressions = flat_map compile objs; computed_values = []; meta} ]
 
 and compile_define ~lambda_level obj args =
   match (lambda_level, args) with
   | true, [Sym (name, _); form] ->
-      Define {name; expression = compile form; meta = meta obj}
+      [Define {name; expression = compile' form; meta = meta obj}]
   | _ -> raise (InvalidFormExn obj)
 
 and compile_set obj = function
   | [Sym (name, _); form] ->
-      Set {name; expression = compile form; meta = meta obj}
+      [Set {name; expression = compile' form; meta = meta obj}]
   | _ -> raise (InvalidFormExn obj)
 
 and compile_define_syntax ~top_level obj args =
   match (top_level, args) with
-  (* TODO: only for top_level = true *)
+  | true, [Sym (name, _); form] ->
+      [DefineSyntax {name; expression = compile' form; meta = meta obj}]
   | _ -> raise (InvalidFormExn obj)
 
 exception UndefinedNameExn of Symbol.t * Common.meta option
@@ -187,7 +194,20 @@ let rec resolve_names ~definitions ~local_definitions ~local_names = function
           resolve_names ~definitions ~local_definitions ~local_names
             expressions
         in
-        (Set {e with expression = set_expr} :: expressions, outer_names))
+        (Set {e with expression = set_expr} :: expressions, outer_names)
+    | DefineSyntax ({name; expression = define_expr; meta} as e) ->
+        if SymbolSet.mem name local_definitions then
+          raise (DuplicateLocalDefinitionExn (name, meta));
+        let[@warning "-8"] [define_expr], _ =
+          resolve_names ~definitions ~local_definitions ~local_names
+            [define_expr]
+        in
+        let expressions, outer_names =
+          resolve_names ~definitions ~local_definitions ~local_names
+            expressions
+        in
+        ( DefineSyntax {e with expression = define_expr} :: expressions,
+          outer_names ))
 
 type error =
   | InvalidForm of Object.t
@@ -195,25 +215,37 @@ type error =
   | DuplicateLocalDefinition of Symbol.t * Common.meta option
 [@@deriving show, eq]
 
-let compile_top_level objs =
-  let open Expression in
-  try
-    let expressions =
-      List.map (compile ~top_level:true ~lambda_level:true) objs
-    in
-    let empty = SymbolSet.empty in
-    let expressions, outer_names =
-      resolve_names ~definitions:Core.definitions ~local_definitions:empty
-        ~local_names:empty expressions
-    in
-    Ok
-      (Lambda
-         { arguments = Fixed [];
-           closure_names = outer_names;
-           expressions;
-           meta = None })
-  with
+let try_top_level f x =
+  try f x with
   | InvalidFormExn o -> Error (InvalidForm o)
-  | UndefinedNameExn (s, m) -> Error (UndefinedName (s, m))
-  | DuplicateLocalDefinitionExn (s, m) ->
-      Error (DuplicateLocalDefinition (s, m))
+  | UndefinedNameExn (name, meta) -> Error (UndefinedName (name, meta))
+  | DuplicateLocalDefinitionExn (name, meta) ->
+      Error (DuplicateLocalDefinition (name, meta))
+
+let compile_top_level definitions =
+  try_top_level
+  @@ fun obj ->
+  let expressions = compile ~top_level:true ~lambda_level:true obj in
+  let expressions, _ =
+    resolve_names ~definitions ~local_definitions:definitions
+      ~local_names:SymbolSet.empty expressions
+  in
+  Ok expressions
+
+let compile_top_level_lambda =
+  try_top_level
+  @@ fun objs ->
+  let definitions = Core.definitions in
+  let expressions =
+    flat_map (compile ~top_level:false ~lambda_level:true) objs
+  in
+  let expressions, _ =
+    resolve_names ~definitions ~local_definitions:definitions
+      ~local_names:SymbolSet.empty expressions
+  in
+  Ok
+    (Expression.Lambda
+       { arguments = Fixed [];
+         closure_names = definitions;
+         expressions;
+         meta = None })

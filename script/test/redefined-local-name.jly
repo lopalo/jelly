@@ -1,7 +1,3 @@
-(define > (lambda [n] true))
-(define + (lambda [n] 0))
-(define cons (lambda [h t] ()))
-
 (define make-num-seq
   (lambda [fn n]
     (if (> n 100)

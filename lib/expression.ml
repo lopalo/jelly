@@ -7,6 +7,8 @@ end
 module SymbolSet = Common.MakeSet (Symbol)
 module SymbolMap = Map.Make (Symbol)
 
+let symbol name = Symbol.Symbol name
+
 type arguments =
   | Fixed of Symbol.t list
   | Variadic of Symbol.t
@@ -34,6 +36,10 @@ type 'a t =
       { name : Symbol.t;
         expression : 'a t;
         meta : Common.meta option }
+  | DefineSyntax of
+      { name : Symbol.t;
+        expression : 'a t;
+        meta : Common.meta option }
 
 and 'a lambda =
   { arguments : arguments;
@@ -41,9 +47,3 @@ and 'a lambda =
     expressions : 'a t list;
     meta : Common.meta option }
 [@@deriving show, eq]
-
-(* TODO *)
-(* | DefineSyntax of *)
-(*     { name : symbol; *)
-(*       expression : 'a t } *)
-(* | Begin of expressions : 'a t *)

@@ -28,31 +28,33 @@ let print_meta = function
       |> print_string
   | None -> ()
 
-let compile objs =
-  match Jelly.Compiler.compile_top_level objs with
-  | Ok objs -> Some objs
-  | Error err ->
-      (match err with
-      | InvalidForm obj ->
-          print_string "Invalid form ";
-          Obj.to_string obj |> print_quoted;
-          Obj.meta obj |> print_meta
-      | UndefinedName (Symbol name, meta) ->
-          print_string "Undefined name ";
-          print_quoted name;
-          print_meta meta
-      | DuplicateLocalDefinition (Symbol name, meta) ->
-          print_string "Duplicate local definition ";
-          print_quoted name;
-          print_meta meta);
-      print_newline (); None
-
 let execute expression =
   match Jelly.Runtime.execute_top_level expression with
   | Ok obj -> Some obj
   | Error err ->
       (match err with
-      | RuntimeError {error; stack_trace; _} ->
+      | Compilation err -> (
+        match err with
+        | InvalidForm obj ->
+            print_string "Invalid form ";
+            Obj.to_string obj |> print_quoted;
+            Obj.meta obj |> print_meta
+        | UndefinedName (Symbol name, meta) ->
+            print_string "Undefined name ";
+            print_quoted name;
+            print_meta meta
+        | DuplicateLocalDefinition (Symbol name, meta) ->
+            print_string "Duplicate local definition ";
+            print_quoted name;
+            print_meta meta)
+      | Runtime (RuntimeError {error; stack_trace; _}) ->
+          print_string "Runtime error: ";
+          print_endline error;
+          List.iter
+            (fun meta -> print_meta (Some meta); print_newline ())
+            stack_trace
+      | SyntaxExpansion (SyntaxExpansionError {error; stack_trace; _}) ->
+          print_string "Syntax expansion error: ";
           print_endline error;
           List.iter
             (fun meta -> print_meta (Some meta); print_newline ())
@@ -76,7 +78,6 @@ let () =
     Option.map
       (fun objs -> objs :: !scripts |> List.rev |> List.concat)
       (parse_string "command line" str)
-    |> (Fun.flip Option.bind) compile
     |> (Fun.flip Option.bind) execute
     |> Option.map print_object |> ignore
   in

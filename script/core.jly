@@ -1,0 +1,67 @@
+
+(define print
+  (lambda [x]
+    (display (object->string x))))
+
+(define prn
+  (lambda [x]
+    (print x)
+    (newline)))
+
+(define cadr
+  (lambda [lst]
+    (car (cdr lst))))
+
+(define cons*
+  (lambda xs
+    (define x (car xs))
+    (define y (cdr xs))
+    (if y
+      (cons x (apply cons* y))
+      x)))
+
+(define $ list)
+
+(define map
+  (lambda [f lst]
+    (if lst
+      (cons (f (car lst)) (map f (cdr lst)))
+      '())))
+
+(define-syntax lambda_
+  (lambda forms
+    (set! forms (cdr forms))
+    (define args (car forms))
+    (define body (cdr forms))
+    (cons* 'lambda args ($ 'set! args ($ 'cdr args)) body)))
+
+(define-syntax let
+  (lambda_ forms
+    (define bindings (car forms))
+    (define body (cdr forms))
+    (define names (map car bindings))
+    (define expressions (map cadr bindings))
+    (cons (cons* 'lambda names body) expressions)))
+
+(define build-let*
+  (lambda [bindings body]
+    (if bindings
+        (let ([binding (car bindings)])
+          ($ 'let ($ binding) (build-let* (cdr bindings) body)))
+        (cons 'begin body))))
+
+(define-syntax let*
+  (lambda_ forms
+    (let ([bindings (car forms)]
+          [body (cdr forms)])
+      (build-let* bindings body))))
+
+(define-syntax or
+  (lambda_ forms
+    (let* ([x (car forms)]
+           [xs (cdr forms)]
+           [tmp (gensym "or")])
+      (if xs
+        ($ 'let ($ [$ tmp x])
+          ($ 'if tmp tmp (cons 'or xs)))
+        x))))

@@ -259,6 +259,8 @@ and quote () =
   let* obj = lisp () in
   return @@ Obj.list ~meta:pos [Obj.symbol "quote"; obj]
 
+(* TODO: @(a b c) -> (list a b c) *)
+(*       character '@' + list_literal *)
 and lisp () =
   L.fold_left or_else null
     [ boolean;

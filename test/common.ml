@@ -9,13 +9,13 @@ let parse_test_script file_name =
 
 let compile_test_script file_name =
   match parse_test_script file_name with
-  | Ok r -> Cmp.compile_top_level r
+  | Ok r -> Cmp.compile_top_level_lambda r
   | Error e -> failwith @@ P.show_error e
 
 let execute_test_script file_name =
-  match compile_test_script file_name with
+  match parse_test_script file_name with
   | Ok r -> RT.execute_top_level r
-  | Error e -> failwith @@ Cmp.show_error e
+  | Error e -> failwith @@ P.show_error e
 
 let obj_of_str str =
   match P.parse_lisp str with
@@ -23,9 +23,8 @@ let obj_of_str str =
   | _ -> failwith @@ "Cannot create single object from string: " ^ str
 
 let execute_str str =
-  match obj_of_str str |> (fun x -> [x]) |> Cmp.compile_top_level with
-  | Ok r -> RT.execute_top_level r
-  | _ -> failwith @@ "Cannot compile string: " ^ str
+  let obj = obj_of_str str in
+  RT.execute_top_level [obj]
 
 let obj =
   let open Jelly.Object in

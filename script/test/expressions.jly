@@ -1,7 +1,4 @@
-(define > ())
-(define + ())
 (define y ())
-(define cons ())
 
 (define make-num-seq
   (lambda [fn n]

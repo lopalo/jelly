@@ -46,11 +46,13 @@ and procedure =
   | Closure of
       { lambda : lambda;
         scope : scope }
+  | Apply
+  | SyntaxExpander
 
 (* TODO *)
 (* | Continuation of stack *)
 
-let symbol ?meta name = Sym (Expr.Symbol.Symbol name, meta)
+let symbol ?meta name = Sym (Expr.symbol name, meta)
 
 let list ?meta objs =
   match objs with
