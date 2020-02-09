@@ -1,0 +1,11 @@
+((lambda [a]
+   ((lambda [b]
+      ((lambda [c]
+         ((lambda [d]
+            (begin
+              (display d)
+              d))
+          (* a c)))
+       (+ a b)))
+    2))
+ 1)

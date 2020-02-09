@@ -9,6 +9,8 @@ let bad_args header objs =
 
 let obj_to_string obj = Ok (Str (to_string obj))
 
+let identical_object o o' = Ok (Bool (identical o o'))
+
 let equal_object o o' = Ok (Bool (equal o o'))
 
 let display = function
@@ -161,8 +163,7 @@ let fail = function
   | Str error -> Error error
   | o -> bad_arg "fail" o
 
-module Scope = Expression.SymbolMap
-module SymbolSet = Expression.SymbolSet
+module Scope = Symbol.Map
 
 let procedure f = Procedure (Function f)
 
@@ -171,6 +172,7 @@ let objects =
   List.map
     (fun (name, obj) -> (Expression.symbol name, obj))
     [ ("object->string", procedure (Function1 obj_to_string));
+      ("identical?", procedure (Function2 identical_object));
       ("equal?", procedure (Function2 equal_object));
       ("display", procedure (Function1 display));
       ("newline", procedure (Function0 newline));
@@ -207,8 +209,8 @@ let objects =
 
 let definitions =
   List.fold_left
-    (fun names (name, _) -> SymbolSet.add name names)
-    SymbolSet.empty objects
+    (fun names (name, _) -> Symbol.Set.add name names)
+    Symbol.Set.empty objects
 
 let make_scope () =
   List.fold_left

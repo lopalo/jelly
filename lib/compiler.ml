@@ -1,27 +1,16 @@
-module Symbol = Expression.Symbol
-module SymbolSet = Expression.SymbolSet
-
 type t = Object.t Expression.t
 
 exception InvalidFormExn of Object.t
 
-let meta = function
-  | Object.Cons (_, meta) -> meta
-  | _ -> None
+let meta = Object.meta
 
 let flat_map f lst = List.map f lst |> List.flatten
 
-let rec compile ?(top_level = false) ?(lambda_level = false) obj =
-  match obj with
-  | Object.Null
-  | Bool _
-  | Int _
-  | Float _
-  | Char _
-  | Str _ ->
+let rec compile ?(top_level = false) ?(lambda_level = false) = function
+  | (Object.Null | Bool _ | Int _ | Float _ | Char _ | Str _) as obj ->
       [Expression.Value obj]
   | Sym (name, meta) -> [Identifier {name; meta}]
-  | Cons (objs, meta) -> (
+  | Cons (objs, meta) as obj -> (
     match objs with
     | [] -> [Value Null]
     | operator :: args -> (
@@ -38,7 +27,7 @@ let rec compile ?(top_level = false) ?(lambda_level = false) obj =
         | _ -> compile_application meta objs)
       | Cons _ -> compile_application meta objs
       | _ -> raise (InvalidFormExn obj)))
-  | Procedure _ -> raise (InvalidFormExn obj)
+  | Procedure _ as obj -> raise (InvalidFormExn obj)
 
 and compile' form = compile form |> List.hd
 
@@ -71,7 +60,7 @@ and compile_lambda obj = function
       in
       [ Lambda
           { arguments;
-            closure_names = SymbolSet.empty;
+            closure_names = Symbol.Set.empty;
             expressions =
               flat_map (compile ~lambda_level:true) (first_form :: rest_forms);
             meta = meta obj } ]
@@ -103,19 +92,19 @@ exception UndefinedNameExn of Symbol.t * Common.meta option
 exception DuplicateLocalDefinitionExn of Symbol.t * Common.meta option
 
 let rec resolve_names ~definitions ~local_definitions ~local_names = function
-  | [] -> ([], SymbolSet.diff local_names local_definitions)
+  | [] -> ([], Symbol.Set.diff local_names local_definitions)
   | expression :: expressions -> (
     match expression with
-    | Expression.Value _ ->
+    | Expression.Value _ as expression ->
         let expressions, outer_names =
           resolve_names ~definitions ~local_definitions ~local_names
             expressions
         in
         (expression :: expressions, outer_names)
     | Identifier {name; meta} ->
-        if not (SymbolSet.mem name definitions) then
+        if not (Symbol.Set.mem name definitions) then
           raise (UndefinedNameExn (name, meta));
-        let local_names = SymbolSet.add name local_names in
+        let local_names = Symbol.Set.add name local_names in
         let expressions, outer_names =
           resolve_names ~definitions ~local_definitions ~local_names
             expressions
@@ -127,7 +116,7 @@ let rec resolve_names ~definitions ~local_definitions ~local_names = function
           resolve_names ~definitions ~local_definitions ~local_names
             [condition; then_expr; else_expr]
         in
-        let local_names = SymbolSet.union local_names expr_outer_names in
+        let local_names = Symbol.Set.union local_names expr_outer_names in
         let expressions, outer_names =
           resolve_names ~definitions ~local_definitions ~local_names
             expressions
@@ -136,16 +125,16 @@ let rec resolve_names ~definitions ~local_definitions ~local_names = function
     | Lambda ({arguments; expressions = lambda_exprs; _} as e) ->
         let arg_names =
           match arguments with
-          | Fixed names -> SymbolSet.of_list names
-          | Variadic name -> SymbolSet.singleton name
+          | Fixed names -> Symbol.Set.of_list names
+          | Variadic name -> Symbol.Set.singleton name
         in
         let lambda_exprs, expr_outer_names =
           resolve_names
-            ~definitions:(SymbolSet.union arg_names definitions)
-            ~local_definitions:arg_names ~local_names:SymbolSet.empty
+            ~definitions:(Symbol.Set.union arg_names definitions)
+            ~local_definitions:arg_names ~local_names:Symbol.Set.empty
             lambda_exprs
         in
-        let local_names = SymbolSet.union local_names expr_outer_names in
+        let local_names = Symbol.Set.union local_names expr_outer_names in
         let expressions, outer_names =
           resolve_names ~definitions ~local_definitions ~local_names
             expressions
@@ -161,7 +150,7 @@ let rec resolve_names ~definitions ~local_definitions ~local_names = function
           resolve_names ~definitions ~local_definitions ~local_names
             application_exprs
         in
-        let local_names = SymbolSet.union local_names expr_outer_names in
+        let local_names = Symbol.Set.union local_names expr_outer_names in
         let expressions, outer_names =
           resolve_names ~definitions ~local_definitions ~local_names
             expressions
@@ -169,34 +158,34 @@ let rec resolve_names ~definitions ~local_definitions ~local_names = function
         ( Application {e with expressions = application_exprs} :: expressions,
           outer_names )
     | Define ({name; expression = define_expr; meta} as e) ->
-        if SymbolSet.mem name local_definitions then
+        if Symbol.Set.mem name local_definitions then
           raise (DuplicateLocalDefinitionExn (name, meta));
-        let definitions = SymbolSet.add name definitions in
-        let local_definitions = SymbolSet.add name local_definitions in
+        let definitions = Symbol.Set.add name definitions in
+        let local_definitions = Symbol.Set.add name local_definitions in
         let[@warning "-8"] [define_expr], expr_outer_names =
           resolve_names ~definitions ~local_definitions ~local_names
             [define_expr]
         in
-        let local_names = SymbolSet.union local_names expr_outer_names in
+        let local_names = Symbol.Set.union local_names expr_outer_names in
         let expressions, outer_names =
           resolve_names ~definitions ~local_definitions ~local_names
             expressions
         in
         (Define {e with expression = define_expr} :: expressions, outer_names)
     | Set ({name; expression = set_expr; meta} as e) ->
-        if not (SymbolSet.mem name definitions) then
+        if not (Symbol.Set.mem name definitions) then
           raise (UndefinedNameExn (name, meta));
         let[@warning "-8"] [set_expr], expr_outer_names =
           resolve_names ~definitions ~local_definitions ~local_names [set_expr]
         in
-        let local_names = SymbolSet.union local_names expr_outer_names in
+        let local_names = Symbol.Set.union local_names expr_outer_names in
         let expressions, outer_names =
           resolve_names ~definitions ~local_definitions ~local_names
             expressions
         in
         (Set {e with expression = set_expr} :: expressions, outer_names)
     | DefineSyntax ({name; expression = define_expr; meta} as e) ->
-        if SymbolSet.mem name local_definitions then
+        if Symbol.Set.mem name local_definitions then
           raise (DuplicateLocalDefinitionExn (name, meta));
         let[@warning "-8"] [define_expr], _ =
           resolve_names ~definitions ~local_definitions ~local_names
@@ -228,7 +217,7 @@ let compile_top_level definitions =
   let expressions = compile ~top_level:true ~lambda_level:true obj in
   let expressions, _ =
     resolve_names ~definitions ~local_definitions:definitions
-      ~local_names:SymbolSet.empty expressions
+      ~local_names:Symbol.Set.empty expressions
   in
   Ok expressions
 
@@ -241,7 +230,7 @@ let compile_top_level_lambda =
   in
   let expressions, _ =
     resolve_names ~definitions ~local_definitions:definitions
-      ~local_names:SymbolSet.empty expressions
+      ~local_names:Symbol.Set.empty expressions
   in
   Ok
     (Expression.Lambda

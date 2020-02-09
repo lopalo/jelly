@@ -1,5 +1,5 @@
 open Expression
-module Scope = SymbolMap
+module Scope = Symbol.Map
 module Obj = Object
 
 let format = Printf.sprintf
@@ -41,12 +41,20 @@ let closure_arguments_number = function
 exception SyntaxExpansionExn of error_context
 
 let error_context stack meta error =
-  let lambda_meta (stack_frame : Obj.stack_frame) =
+  let frame_meta (stack_frame : Obj.stack_frame) =
     match stack_frame.expression with
-    | Lambda {meta; _} -> meta
-    | _ -> None
+    | Lambda {meta; _}
+    | Application {meta; _} ->
+        meta
+    | Value _
+    | Identifier _
+    | If _
+    | Define _
+    | Set _
+    | DefineSyntax _ ->
+        None
   in
-  let stack_trace = List.filter_map lambda_meta stack in
+  let stack_trace = List.filter_map frame_meta stack in
   let stack_trace =
     match meta with
     | Some m -> m :: stack_trace
@@ -61,7 +69,7 @@ let rec execute ctx (stack : Obj.stack) scope = function
       execute ctx ({expression = e; scope} :: stack) scope condition
   | Lambda ({closure_names; _} as e) ->
       let closure_scope =
-        Scope.filter (fun x _ -> SymbolSet.mem x closure_names) scope
+        Scope.filter (fun x _ -> Symbol.Set.mem x closure_names) scope
       in
       Obj.Procedure (Obj.Closure {lambda = e; scope = closure_scope})
       |> return ctx stack
@@ -111,25 +119,32 @@ and execute_procedure ctx stack meta = function
             execute_procedure ctx stack meta (proc :: args)
         | _ ->
             application_error ctx stack meta
-              "'apply' function takes a function and a list of arguments")
+              "'apply' function takes a procedure and a list of arguments")
       | SyntaxExpander -> (
         match args with
         | [arg] -> (
-          match expand_syntax ctx arg with
-          | Ok obj -> return ctx stack obj
-          | Error (SyntaxExpansionError {error; stack_size; stack_trace}) ->
-              let {stack_size = stack_size'; stack_trace = stack_trace'; _} =
-                error_context stack meta ""
-              in
-              Error
-                (RuntimeError
-                   { error;
-                     stack_size = stack_size + stack_size';
-                     stack_trace = stack_trace @ stack_trace' }))
+            let err_handler = ctx.error_handler in
+            ctx.error_handler <- None;
+            let res = expand_syntax ctx arg in
+            ctx.error_handler <- err_handler;
+            match res with
+            | Ok obj -> return ctx stack obj
+            | Error (SyntaxExpansionError {error; stack_size; stack_trace})
+              -> (
+              match err_handler with
+              | Some proc ->
+                  execute_procedure ctx stack meta [proc; Obj.Str error]
+              | None ->
+                  let err_ctx = error_context stack meta "" in
+                  Error
+                    (RuntimeError
+                       { error;
+                         stack_size = stack_size + err_ctx.stack_size;
+                         stack_trace = stack_trace @ err_ctx.stack_trace })))
         | _ ->
             application_error ctx stack meta "Syntax expander takes 1 argument"
         ))
-    | _ ->
+    | obj ->
         application_error ctx stack meta
           (Obj.to_string obj ^ " is not a procedure"))
 
@@ -146,7 +161,14 @@ and execute_function = function
 and execute_lambda ctx stack scope ({expressions; _} as lambda : Obj.lambda) =
   let make_scope = function
     | Define {name; _} -> Scope.add name (ref Obj.Null) scope
-    | _ -> scope
+    | Lambda _
+    | Value _
+    | Identifier _
+    | If _
+    | Application _
+    | Set _
+    | DefineSyntax _ ->
+        scope
   in
   match expressions with
   | [] -> failwith "Tail call is not eliminated"
@@ -194,10 +216,10 @@ and return ctx stack obj =
 and expand_syntax ctx =
   let scope = ctx.syntax_scope in
   let rec traverse = function
-    | Obj.Cons ((Sym (name, _) :: _ as objs), meta) when Scope.mem name scope
+    | Obj.Cons (Sym (name, _) :: objs, meta) as form when Scope.mem name scope
       -> (
       match
-        execute_procedure ctx [] meta (!(Scope.find name scope) :: objs)
+        execute_procedure ctx [] meta (!(Scope.find name scope) :: form :: objs)
       with
       | Ok obj -> traverse obj
       | Error (RuntimeError error_context) ->
@@ -205,7 +227,7 @@ and expand_syntax ctx =
     | Cons (objs, meta) as obj -> (
       match objs with
       | Sym (Symbol "quote", _) :: _ -> obj
-      | _ -> Obj.Cons (List.map traverse objs, meta))
+      | objs -> Obj.Cons (List.map traverse objs, meta))
     | obj -> obj
   in
   fun obj ->
@@ -237,7 +259,7 @@ and execute_expressions ctx definitions scope objects result expressions =
           Error (Compilation (DuplicateLocalDefinition (name, meta)))
         else
           let scope = Scope.add name (ref Obj.Null) scope in
-          let definitions = SymbolSet.add name definitions in
+          let definitions = Symbol.Set.add name definitions in
           let result = execute ctx [] scope expression in
           execute_expressions ctx definitions scope objects result expressions
     | DefineSyntax {name; meta; _} ->
@@ -253,8 +275,8 @@ and execute_expressions ctx definitions scope objects result expressions =
 
 let scope_to_definitions scope =
   Scope.fold
-    (fun name _ names -> SymbolSet.add name names)
-    scope SymbolSet.empty
+    (fun name _ names -> Symbol.Set.add name names)
+    scope Symbol.Set.empty
 
 let execute_top_level objects =
   let ctx =

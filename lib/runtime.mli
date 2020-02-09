@@ -21,4 +21,4 @@ val equal_error : error -> error -> bool
 
 val execute_top_level : Object.t list -> (Object.t, error) result
 
-val scope_to_definitions : 'a Expression.SymbolMap.t -> Expression.SymbolSet.t
+val scope_to_definitions : 'a Symbol.Map.t -> Symbol.Set.t

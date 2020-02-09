@@ -28,8 +28,8 @@ let print_meta = function
       |> print_string
   | None -> ()
 
-let execute expression =
-  match Jelly.Runtime.execute_top_level expression with
+let execute objects =
+  match Jelly.Runtime.execute_top_level objects with
   | Ok obj -> Some obj
   | Error err ->
       (match err with

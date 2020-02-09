@@ -3,9 +3,9 @@ module Expr = Jelly.Expression
 module Obj = Jelly.Object
 module Cmp = Jelly.Compiler
 
-let sym name = Expr.symbol name
+let sym = Expr.symbol
 
-let symbols = Expr.SymbolSet.of_list
+let symbols = Jelly.Symbol.Set.of_list
 
 let check =
   let open A in

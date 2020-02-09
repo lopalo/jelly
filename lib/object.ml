@@ -11,7 +11,7 @@ type t =
   | Float of float
   | Char of char
   | Str of string
-  | Sym of Expr.Symbol.t * Common.meta option
+  | Sym of Symbol.t * Common.meta option
   | Cons of t list * Common.meta option
   | Procedure of procedure
 
@@ -21,7 +21,7 @@ and lambda = t Expr.lambda
 
 and variable = t ref
 
-and scope = variable Expr.SymbolMap.t
+and scope = variable Symbol.Map.t
 
 and stack_frame =
   { expression : expression;
@@ -54,10 +54,9 @@ and procedure =
 
 let symbol ?meta name = Sym (Expr.symbol name, meta)
 
-let list ?meta objs =
-  match objs with
+let list ?meta = function
   | [] -> Null
-  | _ -> Cons (objs, meta)
+  | objs -> Cons (objs, meta)
 
 let char_to_string = function
   | '\n' -> "\\newline"
@@ -78,11 +77,23 @@ let rec to_string = function
   | Procedure _ -> "#procedure"
 
 (* TODO *)
-(* | Vec _ -> "#vec(...)" *)
+(* | Vec -> "#vec(...)" *)
 (* | HashTable -> "#hmap(...)" *)
 
+let identical obj obj' =
+  match (obj, obj') with
+  | Null, Null -> true
+  | Bool b, Bool b' -> b == b'
+  | Int i, Int i' -> i == i'
+  | Float f, Float f' -> f == f'
+  | Char c, Char c' -> c == c'
+  | Str s, Str s' -> s == s'
+  | Sym (s, m), Sym (s', m') -> s == s' && m == m'
+  | Cons (objs, m), Cons (objs', m') -> objs == objs' && m == m'
+  | obj, obj' -> obj == obj'
+
 let rec equal obj obj' =
-  if obj == obj' then true
+  if identical obj obj' then true
   else
     match (obj, obj') with
     | Null, Null -> true
@@ -93,19 +104,27 @@ let rec equal obj obj' =
     | Str s, Str s' -> S.equal s s'
     | Sym (Symbol s, _), Sym (Symbol s', _) -> S.equal s s'
     | Cons (objs, _), Cons (objs', _) -> equal_lists objs objs'
-    | _ -> false
+    | _, _ -> false
 
 and equal_lists objs objs' =
   match (objs, objs') with
   | x :: xs, y :: ys -> equal x y && equal_lists xs ys
   | [], [] -> true
-  | _ -> false
+  | _, _ -> false
 
 let is_true = function
   | Null
   | Bool false ->
       false
-  | _ -> true
+  | Bool true -> true
+  | Int _
+  | Float _
+  | Char _
+  | Str _
+  | Sym _
+  | Cons _
+  | Procedure _ ->
+      true
 
 let rec pp ppf = function
   | Null -> Fmt.string ppf "()"
@@ -122,4 +141,11 @@ let meta = function
   | Sym (_, meta)
   | Cons (_, meta) ->
       meta
-  | _ -> None
+  | Null
+  | Bool _
+  | Int _
+  | Float _
+  | Char _
+  | Str _
+  | Procedure _ ->
+      None

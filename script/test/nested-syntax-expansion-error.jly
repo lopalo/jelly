@@ -1,0 +1,27 @@
+(define faulty-build-let*
+  (lambda [bindings body]
+    (if bindings
+      (let ([binding (car bindings)])
+        ($ 'let ($ binding) (faulty-build-let* (cdr bindings) body)))
+      (fail "foo"))))
+
+(define-syntax faulty-let*
+  (lambda_ forms
+    (let ([bindings (car forms)]
+          [body (cdr forms)])
+      (faulty-build-let* bindings body))))
+
+(define x
+  (lambda []
+    (expand-syntax
+      '(faulty-let* ([a 1]
+                     [b 2])
+         d))
+    (display "foo")))
+
+(define y
+  (lambda []
+    (x)
+    (display "foo")))
+
+(y)

@@ -2,6 +2,8 @@ module A = Alcotest
 module Obj = Jelly.Object
 module RT = Jelly.Runtime
 
+let sym name = Jelly.Expression.symbol name
+
 let check =
   let open A in
   result (testable Obj.pp Obj.equal) (testable RT.pp_error RT.equal_error)
@@ -19,8 +21,7 @@ let make_number_sequence () =
     (Common.execute_test_script "number-sequence.jly")
 
 let closure () =
-  let module Symbols = Jelly.Expression.SymbolSet in
-  let sym name = Jelly.Expression.symbol name in
+  let module Symbols = Jelly.Symbol.Set in
   let symbols = Symbols.of_list in
   let scope_names = function
     | Obj.Procedure (Closure {scope; _}) -> RT.scope_to_definitions scope
@@ -59,7 +60,21 @@ let stack_trace () =
               ({source_name = "stack-trace.jly"; line_number; column_number}
                 : Jelly.Common.meta)
             in
-            [m 4 11; m 1 2; m 1 2; m 1 2; m 1 2; m 1 2; m 1 2; m 1 2]) })
+            [ m 4 11;
+              m 4 6;
+              m 1 2;
+              m 5 6;
+              m 1 2;
+              m 5 6;
+              m 1 2;
+              m 5 6;
+              m 1 2;
+              m 5 6;
+              m 1 2;
+              m 5 6;
+              m 1 2;
+              m 5 6;
+              m 1 2 ]) })
     (Common.execute_test_script "stack-trace.jly")
 
 let bad_arg () =
@@ -115,6 +130,18 @@ let error_handler () =
                column_number = 2 } ] })
     (Common.execute_test_script "error-handler.jly")
 
+let redefined_top_level_name () =
+  check "error"
+    (Error
+       (RT.Compilation
+          (Jelly.Compiler.DuplicateLocalDefinition
+             ( sym "x",
+               Some
+                 { source_name = "no source";
+                   line_number = 0;
+                   column_number = 22 } ))))
+    (Common.execute_str "(begin (define x 333) (define x 777))")
+
 let tests =
   [ A.test_case "lambda application" `Quick lambda_application;
     A.test_case "make number sequence" `Quick make_number_sequence;
@@ -127,4 +154,5 @@ let tests =
     A.test_case "wrong function arguments number" `Quick
       wrong_function_arguments_number;
     A.test_case "non procedure application" `Quick non_procedure_application;
-    A.test_case "error-handler" `Quick error_handler ]
+    A.test_case "error handler" `Quick error_handler;
+    A.test_case "redefined top level name" `Quick redefined_top_level_name ]

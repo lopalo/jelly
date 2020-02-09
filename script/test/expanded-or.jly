@@ -1,0 +1,11 @@
+((lambda [or0]
+   (if or0 or0
+     ((lambda [or1]
+        (if or1 or1
+         ((lambda [or2]
+            (if or2 or2
+              ((lambda [or3] (if or3 or3 ((lambda [or4] (if or4 or4 66)) 55)))
+               44)))
+          33)))
+      22)))
+ 11)

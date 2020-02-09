@@ -5,4 +5,4 @@ let () =
     [ ("parser", Parser.tests);
       ("compiler", Compiler.tests);
       ("runtime", Runtime.tests);
-      ("syntax extension", Syntax_extension.tests) ]
+      ("syntax extension", SyntaxExtension.tests) ]

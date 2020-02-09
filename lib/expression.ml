@@ -1,12 +1,3 @@
-module Symbol = struct
-  type t = Symbol of string [@@unboxed] [@@deriving show, eq]
-
-  let compare (Symbol s) (Symbol s') = String.compare s s'
-end
-
-module SymbolSet = Common.MakeSet (Symbol)
-module SymbolMap = Map.Make (Symbol)
-
 let symbol name = Symbol.Symbol name
 
 type arguments =
@@ -43,7 +34,7 @@ type 'a t =
 
 and 'a lambda =
   { arguments : arguments;
-    closure_names : SymbolSet.t;
+    closure_names : Symbol.Set.t;
     expressions : 'a t list;
     meta : Common.meta option }
 [@@deriving show, eq]

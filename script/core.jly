@@ -33,7 +33,11 @@
     (set! forms (cdr forms))
     (define args (car forms))
     (define body (cdr forms))
-    (cons* 'lambda args ($ 'set! args ($ 'cdr args)) body)))
+    (cons*
+      'lambda args
+      ($ 'define '&form ($ 'car args))
+      ($ 'set! args ($ 'cdr args))
+      body)))
 
 (define-syntax let
   (lambda_ forms
@@ -46,9 +50,9 @@
 (define build-let*
   (lambda [bindings body]
     (if bindings
-        (let ([binding (car bindings)])
-          ($ 'let ($ binding) (build-let* (cdr bindings) body)))
-        (cons 'begin body))))
+      (let ([binding (car bindings)])
+        ($ 'let ($ binding) (build-let* (cdr bindings) body)))
+      (cons 'begin body))))
 
 (define-syntax let*
   (lambda_ forms
@@ -58,9 +62,9 @@
 
 (define-syntax or
   (lambda_ forms
-    (let* ([x (car forms)]
-           [xs (cdr forms)]
-           [tmp (gensym "or")])
+    (let ([x (car forms)]
+          [xs (cdr forms)]
+          [tmp (gensym "or")])
       (if xs
         ($ 'let ($ [$ tmp x])
           ($ 'if tmp tmp (cons 'or xs)))
