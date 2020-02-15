@@ -59,13 +59,30 @@ let test_wrong_lisp () =
        (ParseError
           ( { input = "#vec\"dd\" (ttt 4.5)]\n";
               offset = 82;
+              commited_offset = 78;
               source_name = "wrong-syntax.jly";
               line_number = 3;
               column_number = 31 },
-            "Predicate 'expected character' is not satisfied" )))
+            "Predicate 'one of: ]' is not satisfied" )))
     (Common.parse_test_script "wrong-syntax.jly")
+
+let test_wrong_lisp_large_input () =
+  A.(list Common.obj |> parse_result |> check)
+    "parse error"
+    (Error
+       (ParseError
+          ( { input = "{}\n\n        x))))\n";
+              offset = 1443;
+              commited_offset = 1433;
+              source_name = "wrong-syntax-large.jly";
+              line_number = 70;
+              column_number = 8 },
+            "Predicate 'one of: )' is not satisfied" )))
+    (Common.parse_test_script "wrong-syntax-large.jly")
 
 let tests =
   [ A.test_case "sentences" `Quick test_sentences;
     A.test_case "lisp" `Quick test_lisp;
-    A.test_case "wrong-lisp" `Quick test_wrong_lisp ]
+    A.test_case "wrong lisp" `Quick test_wrong_lisp;
+    A.test_case "wrong lisp (large input)" `Quick test_wrong_lisp_large_input
+  ]

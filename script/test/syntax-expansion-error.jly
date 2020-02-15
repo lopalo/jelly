@@ -2,7 +2,7 @@
   (lambda [bindings body]
     (if bindings
       (let ([binding (car bindings)])
-        ($ 'let ($ binding) (faulty-build-let* (cdr bindings) body)))
+        @('let @(binding) (faulty-build-let* (cdr bindings) body)))
       (fail "foo"))))
 
 (define-syntax faulty-let*

@@ -1,4 +1,3 @@
-
 (define print
   (lambda [x]
     (display (object->string x))))
@@ -20,6 +19,8 @@
       (cons x (apply cons* y))
       x)))
 
+(define $ list)
+
 (define map
   (lambda [f lst]
     (if lst
@@ -33,8 +34,8 @@
     (define body (cdr forms))
     (cons*
       'lambda args
-      @('define '&form @('car args))
-      @('set! args @('cdr args))
+      ($ 'define '&form ($ 'car args))
+      ($ 'set! args ($ 'cdr args))
       body)))
 
 (define-syntax let
@@ -49,7 +50,7 @@
   (lambda [bindings body]
     (if bindings
       (let ([binding (car bindings)])
-        @('let @(binding) (build-let* (cdr bindings) body)))
+        ($ 'let ($ binding) (build-let* (cdr bindings) body)))
       (cons 'begin body))))
 
 (define-syntax let*
@@ -64,6 +65,9 @@
           [xs (cdr forms)]
           [tmp (gensym "or")])
       (if xs
-        @('let @(@[tmp x])
-          @('if tmp tmp (cons 'or xs)))
+        ($ 'let ($ [$ tmp x])
+          ($ 'if tmp tmp (cons 'or xs)))
+
+        {}
+
         x))))

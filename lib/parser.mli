@@ -1,6 +1,7 @@
 type state =
   { input : string;
     offset : int;
+    commited_offset : int;
     source_name : string;
     line_number : int;
     column_number : int }
