@@ -33,27 +33,25 @@ let execute objects =
   | Ok obj -> Some obj
   | Error err ->
       (match err with
-      | Compilation err -> (
-        match err with
-        | InvalidForm obj ->
-            print_string "Invalid form ";
-            Obj.to_string obj |> print_quoted;
-            Obj.meta obj |> print_meta
-        | UndefinedName (Symbol name, meta) ->
-            print_string "Undefined name ";
-            print_quoted name;
-            print_meta meta
-        | DuplicateLocalDefinition (Symbol name, meta) ->
-            print_string "Duplicate local definition ";
-            print_quoted name;
-            print_meta meta)
-      | Runtime (RuntimeError {error; stack_trace; _}) ->
+      | `InvalidForm obj ->
+          print_string "Invalid form ";
+          Obj.to_string obj |> print_quoted;
+          Obj.meta obj |> print_meta
+      | `UndefinedName (Symbol name, meta) ->
+          print_string "Undefined name ";
+          print_quoted name;
+          print_meta meta
+      | `DuplicateDefinition (Symbol name, meta) ->
+          print_string "Duplicate local definition ";
+          print_quoted name;
+          print_meta meta
+      | `RuntimeError {error; stack_trace; _} ->
           print_string "Runtime error: ";
           print_endline error;
           List.iter
             (fun meta -> print_meta (Some meta); print_newline ())
             stack_trace
-      | SyntaxExpansion (SyntaxExpansionError {error; stack_trace; _}) ->
+      | `SyntaxExpansionError {error; stack_trace; _} ->
           print_string "Syntax expansion error: ";
           print_endline error;
           List.iter

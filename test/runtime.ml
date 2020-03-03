@@ -37,7 +37,8 @@ let closure () =
      in
      List.map scope_names procedures)
 
-let rt_error error_context = Error (RT.Runtime (RuntimeError error_context))
+let rt_error (error_context : RT.error_context) =
+  Error (`RuntimeError error_context)
 
 let tail_call_elimination () =
   check "error"
@@ -133,13 +134,10 @@ let error_handler () =
 let redefined_top_level_name () =
   check "error"
     (Error
-       (RT.Compilation
-          (Jelly.Compiler.DuplicateLocalDefinition
-             ( sym "x",
-               Some
-                 { source_name = "no source";
-                   line_number = 0;
-                   column_number = 22 } ))))
+       (`DuplicateDefinition
+         ( sym "x",
+           Some {source_name = "no source"; line_number = 0; column_number = 22}
+         )))
     (Common.execute_str "(begin (define x 333) (define x 777))")
 
 let tests =

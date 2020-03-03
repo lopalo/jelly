@@ -1,9 +1,9 @@
 type t = Object.t Expression.t
 
 type error =
-  | InvalidForm of Object.t
-  | UndefinedName of Symbol.t * Common.meta option
-  | DuplicateLocalDefinition of Symbol.t * Common.meta option
+  [ `InvalidForm of Object.t
+  | `UndefinedName of Symbol.t * Common.meta option
+  | `DuplicateDefinition of Symbol.t * Common.meta option ]
 
 val pp_error : error Fmt.t
 

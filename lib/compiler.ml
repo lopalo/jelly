@@ -89,7 +89,7 @@ and compile_define_syntax ~top_level obj args =
 
 exception UndefinedNameExn of Symbol.t * Common.meta option
 
-exception DuplicateLocalDefinitionExn of Symbol.t * Common.meta option
+exception DuplicateDefinitionExn of Symbol.t * Common.meta option
 
 let rec resolve_names ~definitions ~local_definitions ~local_names = function
   | [] -> ([], Symbol.Set.diff local_names local_definitions)
@@ -159,7 +159,7 @@ let rec resolve_names ~definitions ~local_definitions ~local_names = function
           outer_names )
     | Define ({name; expression = define_expr; meta} as e) ->
         if Symbol.Set.mem name local_definitions then
-          raise (DuplicateLocalDefinitionExn (name, meta));
+          raise (DuplicateDefinitionExn (name, meta));
         let definitions = Symbol.Set.add name definitions in
         let local_definitions = Symbol.Set.add name local_definitions in
         let[@warning "-8"] [define_expr], expr_outer_names =
@@ -186,7 +186,7 @@ let rec resolve_names ~definitions ~local_definitions ~local_names = function
         (Set {e with expression = set_expr} :: expressions, outer_names)
     | DefineSyntax ({name; expression = define_expr; meta} as e) ->
         if Symbol.Set.mem name local_definitions then
-          raise (DuplicateLocalDefinitionExn (name, meta));
+          raise (DuplicateDefinitionExn (name, meta));
         let[@warning "-8"] [define_expr], _ =
           resolve_names ~definitions ~local_definitions ~local_names
             [define_expr]
@@ -199,17 +199,17 @@ let rec resolve_names ~definitions ~local_definitions ~local_names = function
           outer_names ))
 
 type error =
-  | InvalidForm of Object.t
-  | UndefinedName of Symbol.t * Common.meta option
-  | DuplicateLocalDefinition of Symbol.t * Common.meta option
+  [ `InvalidForm of Object.t
+  | `UndefinedName of Symbol.t * Common.meta option
+  | `DuplicateDefinition of Symbol.t * Common.meta option ]
 [@@deriving show, eq]
 
 let try_top_level f x =
   try f x with
-  | InvalidFormExn o -> Error (InvalidForm o)
-  | UndefinedNameExn (name, meta) -> Error (UndefinedName (name, meta))
-  | DuplicateLocalDefinitionExn (name, meta) ->
-      Error (DuplicateLocalDefinition (name, meta))
+  | InvalidFormExn o -> Error (`InvalidForm o)
+  | UndefinedNameExn (name, meta) -> Error (`UndefinedName (name, meta))
+  | DuplicateDefinitionExn (name, meta) ->
+      Error (`DuplicateDefinition (name, meta))
 
 let compile_top_level definitions =
   try_top_level

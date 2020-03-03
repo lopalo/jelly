@@ -25,56 +25,46 @@ let let_star_form_expansion () =
 let redefined_top_level_name_1 () =
   check "error"
     (Error
-       (RT.Compilation
-          (Jelly.Compiler.DuplicateLocalDefinition
-             ( sym "x",
-               Some
-                 { source_name = "no source";
-                   line_number = 0;
-                   column_number = 29 } ))))
+       (`DuplicateDefinition
+         ( sym "x",
+           Some {source_name = "no source"; line_number = 0; column_number = 29}
+         )))
     (Common.execute_str "(begin (define-syntax x 333) (define x 777))")
 
 let redefined_top_level_name_2 () =
   check "error"
     (Error
-       (RT.Compilation
-          (Jelly.Compiler.DuplicateLocalDefinition
-             ( sym "x",
-               Some
-                 { source_name = "no source";
-                   line_number = 0;
-                   column_number = 22 } ))))
+       (`DuplicateDefinition
+         ( sym "x",
+           Some {source_name = "no source"; line_number = 0; column_number = 22}
+         )))
     (Common.execute_str "(begin (define x 333) (define-syntax x 777))")
 
 let redefined_top_level_name_3 () =
   check "error"
     (Error
-       (RT.Compilation
-          (Jelly.Compiler.DuplicateLocalDefinition
-             ( sym "x",
-               Some
-                 { source_name = "no source";
-                   line_number = 0;
-                   column_number = 29 } ))))
+       (`DuplicateDefinition
+         ( sym "x",
+           Some {source_name = "no source"; line_number = 0; column_number = 29}
+         )))
     (Common.execute_str "(begin (define-syntax x 333) (define-syntax x 777))")
 
 let syntax_expansion_error () =
   check "error"
     (Error
-       (RT.SyntaxExpansion
-          (RT.SyntaxExpansionError
-             { error = "foo";
-               stack_size = 2;
-               stack_trace =
-                 [ { source_name = "syntax-expansion-error.jly";
-                     line_number = 5;
-                     column_number = 6 };
-                   { source_name = "syntax-expansion-error.jly";
-                     line_number = 4;
-                     column_number = 8 };
-                   { source_name = "syntax-expansion-error.jly";
-                     line_number = 4;
-                     column_number = 8 } ] })))
+       (`SyntaxExpansionError
+         { error = "foo";
+           stack_size = 2;
+           stack_trace =
+             [ { source_name = "syntax-expansion-error.jly";
+                 line_number = 5;
+                 column_number = 6 };
+               { source_name = "syntax-expansion-error.jly";
+                 line_number = 4;
+                 column_number = 8 };
+               { source_name = "syntax-expansion-error.jly";
+                 line_number = 4;
+                 column_number = 8 } ] }))
     (Common.execute_test_script ~core:true "syntax-expansion-error.jly")
 
 let nested_syntax_expansion_error () =

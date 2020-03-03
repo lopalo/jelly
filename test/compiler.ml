@@ -114,41 +114,39 @@ let expressions () =
 let invalid_lambda_arg () =
   check "invalid form error"
     (Error
-       (Cmp.InvalidForm
-          (Common.obj_of_str "(lambda (q 666) (gg 1 2) (1 2 3) n)")))
+       (`InvalidForm (Common.obj_of_str "(lambda (q 666) (gg 1 2) (1 2 3) n)")))
     (Common.compile_test_script "wrong-lambda-argument.jly")
 
 let invalid_operator () =
   check "invalid form error"
-    (Error (Cmp.InvalidForm (Common.obj_of_str "(5.1 n)")))
+    (Error (`InvalidForm (Common.obj_of_str "(5.1 n)")))
     (Common.compile_test_script "wrong-operator.jly")
 
 let misplaced_define () =
   check "invalid form error"
-    (Error
-       (Cmp.InvalidForm (Common.obj_of_str "(define y (lambda [n] (fn n)))")))
+    (Error (`InvalidForm (Common.obj_of_str "(define y (lambda [n] (fn n)))")))
     (Common.compile_test_script "misplaced-define.jly")
 
 let undefined_name () =
   check "undefined name error"
     (Error
-       (Cmp.UndefinedName
-          ( sym "zzz",
-            Some
-              { source_name = "undefined-name.jly";
-                line_number = 4;
-                column_number = 32 } )))
+       (`UndefinedName
+         ( sym "zzz",
+           Some
+             { source_name = "undefined-name.jly";
+               line_number = 4;
+               column_number = 32 } )))
     (Common.compile_test_script "undefined-name.jly")
 
 let redefined_local_name () =
   check "duplicate local definition error"
     (Error
-       (Cmp.DuplicateLocalDefinition
-          ( sym "fn",
-            Some
-              { source_name = "redefined-local-name.jly";
-                line_number = 5;
-                column_number = 4 } )))
+       (`DuplicateDefinition
+         ( sym "fn",
+           Some
+             { source_name = "redefined-local-name.jly";
+               line_number = 5;
+               column_number = 4 } )))
     (Common.compile_test_script "redefined-local-name.jly")
 
 let tests =

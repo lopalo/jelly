@@ -3,15 +3,10 @@ type error_context =
     stack_size : int;
     stack_trace : Common.meta list }
 
-type runtime_error = RuntimeError of error_context [@@unboxed]
-
-type syntax_expansion_error = SyntaxExpansionError of error_context
-[@@unboxed]
-
 type error =
-  | Compilation of Compiler.error
-  | Runtime of runtime_error
-  | SyntaxExpansion of syntax_expansion_error
+  [ Compiler.error
+  | `RuntimeError of error_context
+  | `SyntaxExpansionError of error_context ]
 
 val pp_error : error Fmt.t
 
