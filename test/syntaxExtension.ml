@@ -56,16 +56,16 @@ let syntax_expansion_error () =
          { error = "foo";
            stack_size = 2;
            stack_trace =
-             [ { source_name = "syntax-expansion-error.jly";
+             [ { source_name = "error/syntax-expansion-error.jly";
                  line_number = 5;
                  column_number = 6 };
-               { source_name = "syntax-expansion-error.jly";
+               { source_name = "error/syntax-expansion-error.jly";
                  line_number = 4;
                  column_number = 8 };
-               { source_name = "syntax-expansion-error.jly";
+               { source_name = "error/syntax-expansion-error.jly";
                  line_number = 4;
                  column_number = 8 } ] }))
-    (Common.execute_test_script ~core:true "syntax-expansion-error.jly")
+    (Common.execute_test_script ~core:true "error/syntax-expansion-error.jly")
 
 let nested_syntax_expansion_error () =
   check "error"
@@ -73,25 +73,26 @@ let nested_syntax_expansion_error () =
        { error = "foo";
          stack_size = 4;
          stack_trace =
-           [ { source_name = "nested-syntax-expansion-error.jly";
+           [ { source_name = "error/nested-syntax-expansion-error.jly";
                line_number = 5;
                column_number = 6 };
-             { source_name = "nested-syntax-expansion-error.jly";
+             { source_name = "error/nested-syntax-expansion-error.jly";
                line_number = 4;
                column_number = 8 };
-             { source_name = "nested-syntax-expansion-error.jly";
+             { source_name = "error/nested-syntax-expansion-error.jly";
                line_number = 4;
                column_number = 8 };
-             { source_name = "nested-syntax-expansion-error.jly";
+             { source_name = "error/nested-syntax-expansion-error.jly";
                line_number = 15;
                column_number = 4 };
-             { source_name = "nested-syntax-expansion-error.jly";
+             { source_name = "error/nested-syntax-expansion-error.jly";
                line_number = 14;
                column_number = 2 };
-             { source_name = "nested-syntax-expansion-error.jly";
+             { source_name = "error/nested-syntax-expansion-error.jly";
                line_number = 22;
                column_number = 2 } ] })
-    (Common.execute_test_script ~core:true "nested-syntax-expansion-error.jly")
+    (Common.execute_test_script ~core:true
+       "error/nested-syntax-expansion-error.jly")
 
 let tests =
   [ A.test_case "'or' form result 1" `Quick or_form_result_1;

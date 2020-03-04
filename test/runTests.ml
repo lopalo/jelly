@@ -5,4 +5,5 @@ let () =
     [ ("parser", Parser.tests);
       ("compiler", Compiler.tests);
       ("runtime", Runtime.tests);
-      ("syntax extension", SyntaxExtension.tests) ]
+      ("syntax extension", SyntaxExtension.tests);
+      ("continuation", Continuation.tests) ]

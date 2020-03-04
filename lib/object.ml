@@ -48,9 +48,8 @@ and procedure =
         scope : scope }
   | Apply
   | SyntaxExpander
-
-(* TODO *)
-(* | Continuation of stack *)
+  | CallWithCurrentContinuation
+  | Continuation of stack
 
 let symbol ?meta name = Sym (Expr.symbol name, meta)
 

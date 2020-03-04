@@ -1,0 +1,7 @@
+((AA before 3) (BB before 5) (CC before 7) (AA after 3 CC) (AA before 2)
+ (BB after 5 AA) (BB before 4) (CC after 7 BB) (CC before 6) (AA after 2 CC)
+ (AA before 1) (BB after 4 AA) (BB before 3) (CC after 6 BB) (CC before 5)
+ (AA after 1 CC) (BB after 3 SCHEDULER) (BB before 2) (CC after 5 BB)
+ (CC before 4) (BB after 2 CC) (BB before 1) (CC after 4 BB) (CC before 3)
+ (BB after 1 CC) (CC after 3 SCHEDULER) (CC before 2) (CC after 2 CC)
+ (CC before 1) (CC after 1 CC))

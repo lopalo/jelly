@@ -29,7 +29,10 @@ let rec compile ?(top_level = false) ?(lambda_level = false) = function
       | _ -> raise (InvalidFormExn obj)))
   | Procedure _ as obj -> raise (InvalidFormExn obj)
 
-and compile' form = compile form |> List.hd
+and compile_one obj =
+  match compile obj with
+  | [expression] -> expression
+  | _ -> raise (InvalidFormExn obj)
 
 and compile_quote obj = function
   | [obj] -> [Value obj]
@@ -38,9 +41,9 @@ and compile_quote obj = function
 and compile_if obj = function
   | [condition; then_form; else_form] ->
       [ If
-          { condition = compile' condition;
-            then_expr = compile' then_form;
-            else_expr = compile' else_form } ]
+          { condition = compile_one condition;
+            then_expr = compile_one then_form;
+            else_expr = compile_one else_form } ]
   | _ -> raise (InvalidFormExn obj)
 
 and compile_lambda obj = function
@@ -73,18 +76,18 @@ and compile_application meta objs =
 and compile_define ~lambda_level obj args =
   match (lambda_level, args) with
   | true, [Sym (name, _); form] ->
-      [Define {name; expression = compile' form; meta = meta obj}]
+      [Define {name; expression = compile_one form; meta = meta obj}]
   | _ -> raise (InvalidFormExn obj)
 
 and compile_set obj = function
   | [Sym (name, _); form] ->
-      [Set {name; expression = compile' form; meta = meta obj}]
+      [Set {name; expression = compile_one form; meta = meta obj}]
   | _ -> raise (InvalidFormExn obj)
 
 and compile_define_syntax ~top_level obj args =
   match (top_level, args) with
   | true, [Sym (name, _); form] ->
-      [DefineSyntax {name; expression = compile' form; meta = meta obj}]
+      [DefineSyntax {name; expression = compile_one form; meta = meta obj}]
   | _ -> raise (InvalidFormExn obj)
 
 exception UndefinedNameExn of Symbol.t * Common.meta option
@@ -175,6 +178,7 @@ let rec resolve_names ~definitions ~local_definitions ~local_names = function
     | Set ({name; expression = set_expr; meta} as e) ->
         if not (Symbol.Set.mem name definitions) then
           raise (UndefinedNameExn (name, meta));
+        let local_names = Symbol.Set.add name local_names in
         let[@warning "-8"] [set_expr], expr_outer_names =
           resolve_names ~definitions ~local_definitions ~local_names [set_expr]
         in

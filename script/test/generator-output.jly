@@ -1,0 +1,1 @@
+(foo (a 5 4 3 2 1 b (gen2 b consumed) c d bar 2 1) stop-iteration ())

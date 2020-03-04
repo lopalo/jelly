@@ -1,0 +1,58 @@
+(define *run* (cons 'run ()))
+
+(define make-generator
+  (lambda [generator-function stop-value]
+    (define producer ())
+    (define consumer ())
+    (lambda [input]
+      (define output
+        (call/cc
+          (lambda [c]
+            (set! consumer c)
+            *run*)))
+      (when (not producer)
+        (generator-function
+          (lambda [value]
+            (call/cc
+              (lambda [c]
+                (set! producer c)
+                (consumer value)))))
+        (set! producer
+          (lambda [_] (consumer stop-value)))
+        (consumer stop-value))
+      (if (identical? output *run*)
+        (producer input)
+        output))))
+
+(define gen1
+  (lambda [yield n]
+    (when (> n 0)
+      (yield n)
+      (gen1 yield (- n 1)))))
+
+(define gen2
+  (lambda [yield]
+    (yield 'a)
+    (gen1 yield 5)
+    (let ([input (yield 'b)])
+      (yield (list 'gen2 'b input))
+      (yield 'c))
+    (yield 'd)))
+
+(define gen3
+  (lambda [yield]
+    (yield 'foo)
+    (gen2 yield)
+    (yield 'bar)
+    (gen1 yield 2)))
+
+(define generator (make-generator gen3 'stop-iteration))
+
+(define iterate
+  (lambda []
+    (define v (generator 'consumed))
+    (if (equal? v 'stop-iteration)
+      ()
+      (cons v (iterate)))))
+
+(list (generator ()) (iterate) (generator ()) (iterate))

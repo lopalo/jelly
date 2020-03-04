@@ -1,0 +1,70 @@
+
+(define *queue* ())
+(define *scheduler* ())
+(define *spawner* ())
+
+(define enqueue
+  (lambda [x]
+    (set! *queue* (append *queue* (list x)))))
+
+(define dequeue
+  (lambda []
+    (let ([x (car *queue*)])
+      (set! *queue* (cdr *queue*))
+      x)))
+
+(define run-scheduler
+  (lambda []
+    (call/cc
+      (lambda [c]
+        (set! *scheduler* c)))
+    (when *queue*
+      ((dequeue) 'SCHEDULER))))
+
+(let ([thunk (call/cc
+               (lambda [c]
+                 (set! *spawner* c)
+                 ()))])
+  (when thunk
+    (thunk)
+    (run-scheduler)))
+
+(define *do-fork*
+  (lambda [thunk]
+    (enqueue
+      (lambda [_]
+        (*spawner* thunk)))))
+
+(define-syntax fork
+  (lambda_ forms
+    @('*do-fork* (cons* 'lambda '[] forms))))
+
+(define yield
+  (lambda [value]
+    (call/cc
+      (lambda [c]
+        (enqueue c)
+        ((dequeue) value)))))
+
+;#############################################
+
+(define *output* ())
+
+(define say
+  (lambda [x]
+    (set! *output* (append *output* (list x)))))
+
+(define say-n-times
+  (lambda [from n]
+    (when (> n 0)
+      (say (list from 'before n))
+      (let ([x (yield from)])
+        (say (list from 'after n x))
+        (say-n-times from (- n 1))))))
+
+(fork (say-n-times 'AA 3))
+(fork (say-n-times 'BB 5))
+(fork (say-n-times 'CC 7))
+(run-scheduler)
+
+*output*

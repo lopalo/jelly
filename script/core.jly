@@ -8,9 +8,19 @@
     (print x)
     (newline)))
 
+(define null?
+  (lambda [x]
+    (identical? x ())))
+
 (define cadr
   (lambda [lst]
     (car (cdr lst))))
+
+(define append
+  (lambda [lst1 lst2]
+    (if (null? lst1)
+      lst2
+      (cons (car lst1) (append (cdr lst1) lst2)))))
 
 (define cons*
   (lambda xs
@@ -67,3 +77,19 @@
         @('let @(@[tmp x])
           @('if tmp tmp (cons 'or xs)))
         x))))
+
+(define-syntax when
+  (lambda_ forms
+    (let ([condition (car forms)]
+          [body (cdr forms)])
+      @('if condition (cons* 'let [] body) ()))))
+
+(define for-each
+  (lambda [f lst]
+    (when lst
+      (f (car lst))
+      (for-each f (cdr lst)))))
+
+(define zero?
+  (lambda [x]
+    (= x 0)))

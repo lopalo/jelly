@@ -57,6 +57,10 @@ let is_symbol = function
   | Sym _ -> Ok (Bool true)
   | _ -> Ok (Bool false)
 
+let is_integer = function
+  | Int _ -> Ok (Bool true)
+  | _ -> Ok (Bool false)
+
 let plus o o' =
   match (o, o') with
   | Int i, Int i' -> Ok (Int (i + i'))
@@ -184,6 +188,7 @@ let objects =
       ("copy-meta", procedure (Function2 copy_meta));
       ("string->symbol", procedure (Function1 string_to_symbol));
       ("symbol?", procedure (Function1 is_symbol));
+      ("integer?", procedure (Function1 is_integer));
       ("+", procedure (Function2 plus));
       ("-", procedure (Function2 minus));
       ("*", procedure (Function2 multiplication));
@@ -205,6 +210,7 @@ let objects =
       ("reset-error-handler!", Null);
       ("apply", Procedure Apply);
       ("expand-syntax", Procedure SyntaxExpander);
+      ("call/cc", Procedure CallWithCurrentContinuation);
       ("gensym", Null) ]
 
 let definitions =

@@ -109,8 +109,8 @@ and execute_procedure ctx stack meta = function
           | Error error -> application_error ctx stack meta error)
       | Apply -> (
         match args with
-        | [(Procedure _ as proc); Cons (args, _)] ->
-            execute_procedure ctx stack meta (proc :: args)
+        | [(Procedure _ as proc); Cons (arg_list, _)] ->
+            execute_procedure ctx stack meta (proc :: arg_list)
         | _ ->
             application_error ctx stack meta
               "'apply' function takes a procedure and a list of arguments")
@@ -137,6 +137,19 @@ and execute_procedure ctx stack meta = function
                         stack_trace = stack_trace @ err_ctx.stack_trace })))
         | _ ->
             application_error ctx stack meta "Syntax expander takes 1 argument"
+        )
+      | CallWithCurrentContinuation -> (
+        match args with
+        | [(Procedure _ as proc)] ->
+            execute_procedure ctx stack meta
+              [proc; Procedure (Continuation stack)]
+        | _ ->
+            application_error ctx stack meta
+              "'call/cc' function takes a procedure")
+      | Continuation next_stack -> (
+        match args with
+        | [arg] -> return ctx next_stack arg
+        | _ -> application_error ctx stack meta "Continuation takes 1 argument"
         ))
     | obj ->
         application_error ctx stack meta
@@ -284,9 +297,7 @@ let execute_top_level objects =
          (function
          | (Procedure (Closure {lambda = {arguments = Fixed [_]; _}; _}) as
            proc)
-         (* TODO *)
-         (* | Procedure Continuation *)
-         
+         | (Procedure (Continuation _) as proc)
          | (Procedure (Function (Function1 _)) as proc) ->
              ctx.error_handler <- Some proc;
              Ok Obj.Null
