@@ -211,7 +211,9 @@ let objects =
       ("apply", Procedure Apply);
       ("expand-syntax", Procedure SyntaxExpander);
       ("call/cc", Procedure CallWithCurrentContinuation);
-      ("gensym", Null) ]
+      ("gensym", Null);
+      ("start-timer!", Null);
+      ("stop-timer!", Null) ]
 
 let definitions =
   List.fold_left

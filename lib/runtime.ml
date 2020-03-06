@@ -16,10 +16,15 @@ type error =
   | `SyntaxExpansionError of error_context ]
 [@@deriving show, eq]
 
+type timer =
+  { mutable ticks : int;
+    handler : Obj.t }
+
 type context =
   { mutable syntax_scope : Obj.scope;
     mutable gensym_count : int;
-    mutable error_handler : Obj.t option }
+    mutable error_handler : Obj.t option;
+    mutable timer : timer option }
 
 let function_arguments_number = function
   | Obj.FunctionVariadic _ -> "*"
@@ -105,7 +110,18 @@ and execute_procedure ctx stack meta = function
             | Variadic name -> Ok (Scope.add name (ref (Obj.list args)) scope)
           in
           match scope_res with
-          | Ok scope -> execute_lambda ctx stack scope lambda
+          | Ok scope -> (
+            match ctx.timer with
+            | None -> execute_lambda ctx stack scope lambda
+            | Some timer ->
+                timer.ticks <- timer.ticks - 1;
+                if timer.ticks > 0 then execute_lambda ctx stack scope lambda
+                else (
+                  ctx.timer <- None;
+                  let (stack : Obj.stack) =
+                    {expression = Lambda lambda; scope} :: stack
+                  in
+                  execute_procedure ctx stack meta [timer.handler]))
           | Error error -> application_error ctx stack meta error)
       | Apply -> (
         match args with
@@ -117,10 +133,13 @@ and execute_procedure ctx stack meta = function
       | SyntaxExpander -> (
         match args with
         | [arg] -> (
+            let timer = ctx.timer in
+            ctx.timer <- None;
             let err_handler = ctx.error_handler in
             ctx.error_handler <- None;
             let res = expand_syntax ctx arg in
             ctx.error_handler <- err_handler;
+            ctx.timer <- timer;
             match res with
             | Ok obj -> return ctx stack obj
             | Error (`SyntaxExpansionError {error; stack_size; stack_trace})
@@ -289,7 +308,10 @@ let scope_to_definitions scope =
 
 let execute_top_level objects =
   let ctx =
-    {error_handler = None; syntax_scope = Scope.empty; gensym_count = 0}
+    { error_handler = None;
+      syntax_scope = Scope.empty;
+      gensym_count = 0;
+      timer = None }
   in
   let set_error_handler =
     Core.procedure
@@ -320,9 +342,36 @@ let execute_top_level objects =
              Ok (Obj.Sym (symbol @@ prefix ^ string_of_int c, None))
          | o -> Core.bad_arg "gensym" o))
   in
+  let start_timer =
+    Core.procedure
+      (Function2
+         (fun ticks handler ->
+           match (ticks, handler) with
+           | ( Int ticks,
+               Procedure (Closure {lambda = {arguments = Fixed []; _}; _}) )
+           | Int ticks, Procedure (Function (Function0 _)) ->
+               ctx.timer <- Some {ticks; handler};
+               Ok Null
+           | ticks, handler ->
+               Core.bad_args "start-timer!.must-be-int-and-zero-arg-procedure"
+                 [ticks; handler]))
+  in
+  let stop_timer =
+    Core.procedure
+      (Function0
+         (fun () ->
+           let timer = ctx.timer in
+           ctx.timer <- None;
+           Ok
+             (match timer with
+             | Some {ticks; _} -> Int ticks
+             | None -> Null)))
+  in
   let scope = Core.make_scope () in
   let definitions = scope_to_definitions scope in
   Scope.find (symbol "set-error-handler!") scope := set_error_handler;
   Scope.find (symbol "reset-error-handler!") scope := reset_error_handler;
   Scope.find (symbol "gensym") scope := gensym;
+  Scope.find (symbol "start-timer!") scope := start_timer;
+  Scope.find (symbol "stop-timer!") scope := stop_timer;
   execute_top_level_objects ctx definitions scope Obj.Null objects

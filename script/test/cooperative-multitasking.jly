@@ -1,7 +1,6 @@
 
 (define *queue* ())
 (define *scheduler* ())
-(define *spawner* ())
 
 (define enqueue
   (lambda [x]
@@ -15,36 +14,25 @@
 
 (define run-scheduler
   (lambda []
-    (call/cc
-      (lambda [c]
-        (set! *scheduler* c)))
+    (define value
+      (call/cc
+        (lambda [c]
+          (set! *scheduler* c)
+          'SCHEDULER)))
     (when *queue*
-      ((dequeue) 'SCHEDULER))))
-
-(let ([thunk (call/cc
-               (lambda [c]
-                 (set! *spawner* c)
-                 ()))])
-  (when thunk
-    (thunk)
-    (run-scheduler)))
-
-(define *do-fork*
-  (lambda [thunk]
-    (enqueue
-      (lambda [_]
-        (*spawner* thunk)))))
+      ((dequeue) value)
+      (*scheduler* 'SCHEDULER))))
 
 (define-syntax fork
   (lambda_ forms
-    @('*do-fork* (cons* 'lambda '[] forms))))
+    @('enqueue (cons* 'lambda '[_] forms))))
 
 (define yield
   (lambda [value]
     (call/cc
       (lambda [c]
         (enqueue c)
-        ((dequeue) value)))))
+        (*scheduler* value)))))
 
 ;#############################################
 

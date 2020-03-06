@@ -1,0 +1,71 @@
+
+(define *queue* ())
+(define *scheduler* ())
+(define *spawner* ())
+(define *task-ticks* ())
+
+(define enqueue
+  (lambda [x]
+    (set! *queue* (append *queue* (list x)))))
+
+(define dequeue
+  (lambda []
+    (let ([x (car *queue*)])
+      (set! *queue* (cdr *queue*))
+      x)))
+
+(define run-task
+  (lambda [thunk]
+    (start-timer! *task-ticks*
+                  (lambda []
+                    (call/cc
+                      (lambda [c]
+                        (enqueue (lambda [] (c ())))
+                        (*scheduler* ())))))
+    (thunk)
+    (stop-timer!)
+    (*scheduler* ())))
+
+(define run-scheduler
+  (lambda []
+    (call/cc
+      (lambda [c]
+        (set! *scheduler* c)))
+    (when *queue*
+      (run-task (dequeue)))))
+
+(define-syntax fork
+  (lambda_ forms
+    @('enqueue (cons* 'lambda '[] forms))))
+
+
+;#############################################
+
+(define *output* ())
+
+(define put-result
+  (lambda [x]
+    (set! *output* (append *output* (list x)))))
+
+(define fibonacci
+  (lambda [n]
+    (if (< n 2)
+      n
+      (+ (fibonacci (- n 1))
+         (fibonacci (- n 2))))))
+
+(define compute
+  (lambda [worker n]
+    (put-result (list worker (fibonacci n)))))
+
+(map
+  (lambda [task-ticks]
+    (set! *output* ())
+    (set! *task-ticks* task-ticks)
+    (fork (compute 'A 10))
+    (fork (compute 'B 7))
+    (fork (compute 'C 13))
+    (fork (compute 'D 5))
+    (run-scheduler)
+    *output*)
+  '(1000 100 10))
