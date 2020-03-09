@@ -1,5 +1,4 @@
 module S = String
-module L = List
 module Expr = Expression
 
 let format = Printf.sprintf
@@ -14,6 +13,8 @@ type t =
   | Sym of Symbol.t * Common.meta option
   | Cons of t list * Common.meta option
   | Procedure of procedure
+  | Vec of t array
+  | HashTable of (string, t) Hashtbl.t
 
 and expression = t Expr.t
 
@@ -38,9 +39,6 @@ and func =
   | Function2 of (t -> t -> func_res)
   | Function3 of (t -> t -> t -> func_res)
 
-(* TODO *)
-(* | Vec of t array *)
-(* | HashTable   *)
 and procedure =
   | Function of func
   | Closure of
@@ -64,6 +62,15 @@ let char_to_string = function
       let s = Char.escaped c in
       if S.length s = 1 then "\\" ^ s else s
 
+let procedure_to_string = function
+  | Function _ -> "#function"
+  | Closure _ -> "#closure"
+  | Continuation _ -> "#continuation"
+  | Apply
+  | SyntaxExpander
+  | CallWithCurrentContinuation ->
+      "#procedure"
+
 let rec to_string = function
   | Null -> "()"
   | Bool b -> string_of_bool b
@@ -72,12 +79,19 @@ let rec to_string = function
   | Char c -> char_to_string c
   | Str s -> "\"" ^ S.escaped s ^ "\""
   | Sym (Symbol s, _) -> s
-  | Cons (objs, _) -> "(" ^ (L.map to_string objs |> S.concat " ") ^ ")"
-  | Procedure _ -> "#procedure"
+  | Cons (objs, _) -> "(" ^ (List.map to_string objs |> S.concat " ") ^ ")"
+  | Procedure proc -> procedure_to_string proc
+  | Vec arr ->
+      let content = Array.map to_string arr |> Array.to_list |> S.concat " " in
+      "#vec(" ^ content ^ ")"
+  | HashTable htbl ->
+      let content =
+        Hashtbl.to_seq htbl |> Seq.map pair_to_string |> List.of_seq
+        |> S.concat " "
+      in
+      "#hmap(" ^ content ^ ")"
 
-(* TODO *)
-(* | Vec -> "#vec(...)" *)
-(* | HashTable -> "#hmap(...)" *)
+and pair_to_string (k, v) = "[\"" ^ S.escaped k ^ "\" " ^ to_string v ^ "]"
 
 let identical obj obj' =
   match (obj, obj') with
@@ -89,6 +103,8 @@ let identical obj obj' =
   | Str s, Str s' -> s == s'
   | Sym (s, m), Sym (s', m') -> s == s' && m == m'
   | Cons (objs, m), Cons (objs', m') -> objs == objs' && m == m'
+  | Vec v, Vec v' -> v == v'
+  | HashTable h, HashTable h' -> h == h'
   | obj, obj' -> obj == obj'
 
 let rec equal obj obj' =
@@ -103,6 +119,8 @@ let rec equal obj obj' =
     | Str s, Str s' -> S.equal s s'
     | Sym (Symbol s, _), Sym (Symbol s', _) -> S.equal s s'
     | Cons (objs, _), Cons (objs', _) -> equal_lists objs objs'
+    | Vec arr, Vec arr' -> equal_arrays arr arr'
+    | HashTable h, HashTable h' -> equal_hashtables h h'
     | _, _ -> false
 
 and equal_lists objs objs' =
@@ -110,6 +128,30 @@ and equal_lists objs objs' =
   | x :: xs, y :: ys -> equal x y && equal_lists xs ys
   | [], [] -> true
   | _, _ -> false
+
+and equal_arrays arr arr' =
+  let module A = Array in
+  if A.length arr <> A.length arr' then false
+  else
+    let rec loop idx =
+      if idx = A.length arr then true
+      else if equal arr.(idx) arr'.(idx) then loop (succ idx)
+      else false
+    in
+    loop 0
+
+and equal_hashtables htbl htbl' =
+  let module H = Hashtbl in
+  if H.length htbl <> H.length htbl' then false
+  else
+    let rec loop = function
+      | k :: keys -> (
+        match (H.find_opt htbl k, H.find_opt htbl' k) with
+        | Some v, Some v' -> if equal v v' then loop keys else false
+        | _ -> false)
+      | [] -> true
+    in
+    H.to_seq_keys htbl |> List.of_seq |> loop
 
 let is_true = function
   | Null
@@ -122,7 +164,9 @@ let is_true = function
   | Str _
   | Sym _
   | Cons _
-  | Procedure _ ->
+  | Procedure _
+  | Vec _
+  | HashTable _ ->
       true
 
 let rec pp ppf = function
@@ -134,7 +178,20 @@ let rec pp ppf = function
   | Str s -> Fmt.quote Fmt.string ppf @@ S.escaped s
   | Sym (Symbol s, _) -> Fmt.string ppf s
   | Cons (objs, _) -> Fmt.parens (Fmt.list ~sep:Fmt.sp (Fmt.box pp)) ppf objs
-  | Procedure _ -> Fmt.string ppf "#procedure"
+  | Procedure proc -> Fmt.string ppf (procedure_to_string proc)
+  | Vec arr ->
+      Fmt.string ppf "#vec";
+      Fmt.parens (Fmt.array ~sep:Fmt.sp (Fmt.box pp)) ppf arr
+  | HashTable htbl ->
+      Fmt.string ppf "#hmap";
+      Fmt.parens (Fmt.hashtbl ~sep:Fmt.sp (Fmt.box pair_pp)) ppf htbl
+
+and pair_pp ppf (k, v) =
+  Fmt.string ppf "[";
+  Fmt.box (Fmt.quote Fmt.string) ppf (S.escaped k);
+  Fmt.sp ppf ();
+  Fmt.box pp ppf v;
+  Fmt.string ppf "]"
 
 let meta = function
   | Sym (_, meta)
@@ -146,5 +203,7 @@ let meta = function
   | Float _
   | Char _
   | Str _
-  | Procedure _ ->
+  | Procedure _
+  | Vec _
+  | HashTable _ ->
       None

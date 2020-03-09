@@ -93,3 +93,36 @@
 (define zero?
   (lambda [x]
     (= x 0)))
+
+(define fold
+  (lambda [acc f lst]
+    (if lst
+      (fold (f acc (car lst)) f (cdr lst))
+      acc)))
+
+(define fold*
+  (lambda [f lst]
+    (fold (car lst) f (cdr lst))))
+
+(define var-args
+  (lambda [f]
+    (lambda args
+      (fold* f args))))
+
+(define >>
+  (lambda [f1 f2]
+    (lambda args
+      (f2 (apply f1 args)))))
+
+(define >>* (var-args >>))
+
+(define string-append* (var-args string-append))
+
+(define inc
+  (lambda [x]
+    (+ x 1)))
+
+(define dec
+  (lambda [x]
+    (- x 1)))
+

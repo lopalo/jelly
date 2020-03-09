@@ -6,4 +6,5 @@ let () =
       ("compiler", Compiler.tests);
       ("runtime", Runtime.tests);
       ("syntax extension", SyntaxExtension.tests);
-      ("continuation", Continuation.tests) ]
+      ("continuation", Continuation.tests);
+      ("core", Core.tests) ]

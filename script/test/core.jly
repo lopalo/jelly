@@ -1,0 +1,66 @@
+
+(define-syntax check
+  (lambda [form predicate expected actual]
+    @('when @('not @(predicate expected actual))
+      (copy-meta form @('fail @('string-append
+                                "ASSERT ERROR: "
+                                @('object->string actual)))))))
+
+(define not-equal?
+  (>> equal? not))
+
+(define not-identical?
+  (>> identical? not))
+
+(check equal? '(18) ((>>* * inc inc inc list) 3 5))
+
+(check equal? (vector 1 2 3) (vector 1 2 3))
+(check equal? (vector 1 (list 2) 3) (list->vector '(1 (2) 3)))
+(check equal? (vector 8 8 8) (make-vector 3 8))
+(check not-equal? (vector 1 2 3) (vector 1 2 3 3))
+(check not-equal? (vector 1 2 3) (vector 1 2 4))
+(check not-identical? (vector 1 2 3) (vector 1 2 3))
+(let ([vec (vector 1 2 3)])
+  (vector-set! vec 1 777)
+  (check equal? 3 (vector-ref vec 2))
+  (check equal? 777 (vector-ref vec 1))
+  (check equal? (vector 1 777 3) vec)
+  (check equal? 3 (vector-length vec))
+  (check identical? vec vec)
+  (check equal? "#vec(1 777 3)" (object->string vec)))
+
+(let ([h1 (make-hashtable 100)]
+      [h2 (make-hashtable 50)])
+  (hashtable-set! h1 "foo" 1)
+  (hashtable-set! h2 "foo" 1)
+  (hashtable-set! h1 "bar" (list 2))
+  (hashtable-set! h2 "bar" (list 2))
+  (hashtable-set! h1 "baz" 3)
+  (check not-equal? h1 h2)
+  (hashtable-set! h2 "baz" 3)
+  (check equal? h1 h2)
+  (check not-identical? h1 h2)
+  (check identical? h2 h2)
+  (hashtable-set! h1 "bar" 777)
+  (check not-equal? h1 h2)
+  (check equal? (vector "bar" "baz" "foo") (hashtable-keys h1))
+  (check equal? "#hmap([\"bar\" (2)] [\"baz\" 3] [\"foo\" 1])" (object->string h2))
+  (hashtable-delete! h1 "foo")
+  (check equal? 'zzz (hashtable-ref h1 "foo" 'zzz))
+  (check equal? 777 (hashtable-ref h1 "bar" 'zzz))
+  (check equal? (vector "bar" "baz") (hashtable-keys h1))
+  (check equal? 2 (hashtable-size h1))
+  (check equal? 3 (hashtable-size h2))
+  (check equal? "#hmap([\"bar\" 777] [\"baz\" 3])" (object->string h1))
+  (check equal? "#hmap([\"bar\" (2)] [\"baz\" 3] [\"foo\" 1])" (object->string h2)))
+
+
+
+
+
+
+
+
+
+
+'PASSED

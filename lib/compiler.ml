@@ -27,7 +27,7 @@ let rec compile ?(top_level = false) ?(lambda_level = false) = function
         | _ -> compile_application meta objs)
       | Cons _ -> compile_application meta objs
       | _ -> raise (InvalidFormExn obj)))
-  | Procedure _ as obj -> raise (InvalidFormExn obj)
+  | (Procedure _ | Vec _ | HashTable _) as obj -> raise (InvalidFormExn obj)
 
 and compile_one obj =
   match compile obj with

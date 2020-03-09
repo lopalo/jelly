@@ -167,6 +167,81 @@ let fail = function
   | Str error -> Error error
   | o -> bad_arg "fail" o
 
+let string_append o o' =
+  match (o, o') with
+  | Str s, Str s' -> Ok (Str (s ^ s'))
+  | o, o' -> bad_args "string-append" [o; o']
+
+let vector objs = Ok (Vec (Array.of_list objs))
+
+let make_vector n obj =
+  match n with
+  | Int n when n >= 0 -> Ok (Vec (Array.make n obj))
+  | o -> bad_arg "make-vector" o
+
+let is_vector = function
+  | Vec _ -> Ok (Bool true)
+  | _ -> Ok (Bool false)
+
+let vector_length = function
+  | Vec arr -> Ok (Int (Array.length arr))
+  | o -> bad_arg "vector-length" o
+
+let vector_ref vec n =
+  match (vec, n) with
+  | Vec arr, Int n ->
+      if n >= 0 && n < Array.length arr then Ok arr.(n)
+      else bad_arg "vector-ref.2.out-of-bounds" (Int n)
+  | vec, n -> bad_args "vector-ref" [vec; n]
+
+let vector_set vec n obj =
+  match (vec, n) with
+  | Vec arr, Int n ->
+      if n >= 0 && n < Array.length arr then (arr.(n) <- obj; Ok Null)
+      else bad_arg "vector-set!.2.out-of-bounds" (Int n)
+  | vec, n -> bad_args "vector-set!" [vec; n]
+
+let list_to_vector = function
+  | Cons (objs, _) -> Ok (Vec (Array.of_list objs))
+  | Null -> Ok (Vec (Array.of_list []))
+  | o -> bad_arg "list->vector" o
+
+let vector_to_list = function
+  | Vec arr -> Ok (Array.to_list arr |> Object.list ?meta:None)
+  | o -> bad_arg "vector->list" o
+
+let make_hashtable = function
+  | Int size -> Ok (HashTable (Hashtbl.create size))
+  | o -> bad_arg "make-hashtable" o
+
+let hashtable_size = function
+  | HashTable h -> Ok (Int (Hashtbl.length h))
+  | htbl -> bad_arg "hashtable-size" htbl
+
+let hashtable_keys = function
+  | HashTable h ->
+      Ok
+        (Vec (Hashtbl.to_seq_keys h |> Seq.map (fun k -> Str k) |> Array.of_seq))
+  | htbl -> bad_arg "hashtable-keys" htbl
+
+let hashtable_ref htbl key default =
+  match (htbl, key) with
+  | HashTable h, Str k -> (
+    match Hashtbl.find_opt h k with
+    | Some v -> Ok v
+    | None -> Ok default)
+  | htbl, key -> bad_args "hashtable-ref" [htbl; key]
+
+let hashtable_set htbl key value =
+  match (htbl, key) with
+  | HashTable h, Str k -> Hashtbl.replace h k value; Ok Null
+  | htbl, key -> bad_args "hashtable-set!" [htbl; key]
+
+let hashtable_delete htbl key =
+  match (htbl, key) with
+  | HashTable h, Str k -> Hashtbl.remove h k; Ok Null
+  | htbl, key -> bad_args "hashtable-delete!" [htbl; key]
+
 module Scope = Symbol.Map
 
 let procedure f = Procedure (Function f)
@@ -213,7 +288,22 @@ let objects =
       ("call/cc", Procedure CallWithCurrentContinuation);
       ("gensym", Null);
       ("start-timer!", Null);
-      ("stop-timer!", Null) ]
+      ("stop-timer!", Null);
+      ("string-append", procedure (Function2 string_append));
+      ("vector", procedure (FunctionVariadic vector));
+      ("make-vector", procedure (Function2 make_vector));
+      ("vector?", procedure (Function1 is_vector));
+      ("vector-length", procedure (Function1 vector_length));
+      ("vector-ref", procedure (Function2 vector_ref));
+      ("vector-set!", procedure (Function3 vector_set));
+      ("vector->list", procedure (Function1 vector_to_list));
+      ("list->vector", procedure (Function1 list_to_vector));
+      ("make-hashtable", procedure (Function1 make_hashtable));
+      ("hashtable-size", procedure (Function1 hashtable_size));
+      ("hashtable-keys", procedure (Function1 hashtable_keys));
+      ("hashtable-ref", procedure (Function3 hashtable_ref));
+      ("hashtable-set!", procedure (Function3 hashtable_set));
+      ("hashtable-delete!", procedure (Function2 hashtable_delete)) ]
 
 let definitions =
   List.fold_left
