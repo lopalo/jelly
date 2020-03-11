@@ -261,7 +261,7 @@ and expand_syntax ctx =
     with SyntaxExpansionExn error_context ->
       Error (`SyntaxExpansionError error_context)
 
-let coerce_error result = (result :> (_, error) result)
+let[@inline always] coerce_error result = (result :> (_, error) result)
 
 let rec execute_top_level_objects ctx definitions scope result_obj = function
   | [] -> Ok result_obj

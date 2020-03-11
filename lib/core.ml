@@ -21,6 +21,12 @@ let newline () = print_newline (); Ok Null
 
 let readline () = Ok (Str (read_line ()))
 
+let is_list = function
+  | Null
+  | Cons _ ->
+      Ok (Bool true)
+  | _ -> Ok (Bool false)
+
 let cons head = function
   | Null -> Ok (Cons ([head], None))
   | Cons (tail, _) -> Ok (Cons (head :: tail, None))
@@ -57,8 +63,16 @@ let is_symbol = function
   | Sym _ -> Ok (Bool true)
   | _ -> Ok (Bool false)
 
+let is_bool = function
+  | Bool _ -> Ok (Bool true)
+  | _ -> Ok (Bool false)
+
 let is_integer = function
   | Int _ -> Ok (Bool true)
+  | _ -> Ok (Bool false)
+
+let is_float = function
+  | Float _ -> Ok (Bool true)
   | _ -> Ok (Bool false)
 
 let plus o o' =
@@ -167,6 +181,48 @@ let fail = function
   | Str error -> Error error
   | o -> bad_arg "fail" o
 
+let is_char = function
+  | Char _ -> Ok (Bool true)
+  | _ -> Ok (Bool false)
+
+let is_string = function
+  | Str _ -> Ok (Bool true)
+  | _ -> Ok (Bool false)
+
+let string_length = function
+  | Str s -> Ok (Int (String.length s))
+  | o -> bad_arg "string-length" o
+
+let substring string start length =
+  match (string, start, length) with
+  | Str s, Int pos, Int len -> (
+    try Ok (Str (String.sub s pos len))
+    with Invalid_argument _ ->
+      bad_args "substring.invalid-positions" [start; length])
+  | string, start, length -> bad_args "substring" [string; start; length]
+
+let string_to_list = function
+  | Str s ->
+      Ok
+        (String.to_seq s
+        |> Seq.map (fun c -> Char c)
+        |> List.of_seq |> Object.list)
+  | o -> bad_arg "string->list" o
+
+let list_to_string = function
+  | Cons (chars, _)
+    when List.for_all
+           (function
+             | Char _ -> true
+             | _ -> false)
+           chars ->
+      Ok
+        (Str
+           (List.map (fun [@warning "-8"] (Char c) -> c) chars
+           |> Parser.string_of_chars))
+  | Null -> Ok (Str "")
+  | o -> bad_arg "list->string" o
+
 let string_append o o' =
   match (o, o') with
   | Str s, Str s' -> Ok (Str (s ^ s'))
@@ -214,6 +270,10 @@ let make_hashtable = function
   | Int size -> Ok (HashTable (Hashtbl.create size))
   | o -> bad_arg "make-hashtable" o
 
+let is_hashtable = function
+  | HashTable _ -> Ok (Bool true)
+  | _ -> Ok (Bool false)
+
 let hashtable_size = function
   | HashTable h -> Ok (Int (Hashtbl.length h))
   | htbl -> bad_arg "hashtable-size" htbl
@@ -256,6 +316,7 @@ let objects =
       ("display", procedure (Function1 display));
       ("newline", procedure (Function0 newline));
       ("readline", procedure (Function0 readline));
+      ("list?", procedure (Function1 is_list));
       ("cons", procedure (Function2 cons));
       ("car", procedure (Function1 car));
       ("cdr", procedure (Function1 cdr));
@@ -263,7 +324,9 @@ let objects =
       ("copy-meta", procedure (Function2 copy_meta));
       ("string->symbol", procedure (Function1 string_to_symbol));
       ("symbol?", procedure (Function1 is_symbol));
+      ("bool?", procedure (Function1 is_bool));
       ("integer?", procedure (Function1 is_integer));
+      ("float?", procedure (Function1 is_float));
       ("+", procedure (Function2 plus));
       ("-", procedure (Function2 minus));
       ("*", procedure (Function2 multiplication));
@@ -289,6 +352,12 @@ let objects =
       ("gensym", Null);
       ("start-timer!", Null);
       ("stop-timer!", Null);
+      ("char?", procedure (Function1 is_char));
+      ("string?", procedure (Function1 is_string));
+      ("string-length", procedure (Function1 string_length));
+      ("substring", procedure (Function3 substring));
+      ("string->list", procedure (Function1 string_to_list));
+      ("list->string", procedure (Function1 list_to_string));
       ("string-append", procedure (Function2 string_append));
       ("vector", procedure (FunctionVariadic vector));
       ("make-vector", procedure (Function2 make_vector));
@@ -299,6 +368,7 @@ let objects =
       ("vector->list", procedure (Function1 vector_to_list));
       ("list->vector", procedure (Function1 list_to_vector));
       ("make-hashtable", procedure (Function1 make_hashtable));
+      ("hashtable?", procedure (Function1 is_hashtable));
       ("hashtable-size", procedure (Function1 hashtable_size));
       ("hashtable-keys", procedure (Function1 hashtable_keys));
       ("hashtable-ref", procedure (Function3 hashtable_ref));

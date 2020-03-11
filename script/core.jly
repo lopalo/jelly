@@ -16,6 +16,10 @@
   (lambda [lst]
     (car (cdr lst))))
 
+(define cddr
+  (lambda [lst]
+    (cdr (cdr lst))))
+
 (define append
   (lambda [lst1 lst2]
     (if (null? lst1)
@@ -34,7 +38,7 @@
   (lambda [f lst]
     (if lst
       (cons (f (car lst)) (map f (cdr lst)))
-      '())))
+      ())))
 
 (define-syntax lambda_
   (lambda forms
@@ -78,11 +82,33 @@
           @('if tmp tmp (cons 'or xs)))
         x))))
 
+(define-syntax and
+  (lambda_ forms
+    (let ([x (car forms)]
+          [xs (cdr forms)]
+          [tmp (gensym "and")])
+      (if xs
+        @('let @(@[tmp x])
+          @('if tmp (cons 'and xs) tmp))
+        x))))
+
 (define-syntax when
   (lambda_ forms
     (let ([condition (car forms)]
           [body (cdr forms)])
-      @('if condition (cons* 'let [] body) ()))))
+      @('if condition (cons* 'let () body) ()))))
+
+(define-syntax cond
+  (lambda_ forms
+    (when forms
+      (let* ([form (car forms)]
+             [condition (car form)]
+             [expression (cadr form)])
+        (if (equal? condition 'else)
+          expression
+          @('if condition
+             expression
+             (cons* 'cond (cdr forms))))))))
 
 (define for-each
   (lambda [f lst]
@@ -92,7 +118,7 @@
 
 (define zero?
   (lambda [x]
-    (= x 0)))
+    (equal? x 0)))
 
 (define fold
   (lambda [acc f lst]
@@ -116,6 +142,8 @@
 
 (define >>* (var-args >>))
 
+(define append* (var-args append))
+
 (define string-append* (var-args string-append))
 
 (define inc
@@ -125,4 +153,142 @@
 (define dec
   (lambda [x]
     (- x 1)))
+
+(define const
+  (lambda [x]
+    (lambda _
+      x)))
+
+(define-syntax letrec
+  (lambda_ forms
+    (let* ([bindings (car forms)]
+           [body (cdr forms)]
+           [names (map car bindings)]
+           [settings (map (lambda [binding]
+                             @('set! (car binding) (cadr binding)))
+                          bindings)]
+           [fn (append* @('lambda names) settings body)])
+      (cons fn (map (const false) bindings)))))
+
+(define-syntax named-let
+  (lambda_ forms
+    (let* ([recur-name (car forms)]
+           [bindings (cadr forms)]
+           [body (cddr forms)]
+           [names (map car bindings)]
+           [expressions (map cadr bindings)]
+           [fn (cons* 'lambda names body)]
+           [letrec-form @('letrec @(@[recur-name fn]) recur-name)])
+      (cons letrec-form expressions))))
+
+(define reverse
+  (lambda [lst]
+    (named-let loop ([result ()] [lst lst])
+        (if lst
+          (loop (cons (car lst) result) (cdr lst))
+          result))))
+
+(define length
+  (lambda [lst]
+    (named-let loop ([len 0] [lst lst])
+      (if lst
+        (loop (inc len) (cdr lst))
+        len))))
+
+(define-syntax =>
+  (lambda_ forms
+    (fold* (lambda [inner outer]
+              (if (symbol? outer)
+                @(outer inner)
+                (cons* (car outer) inner (cdr outer))))
+           forms)))
+
+(define-syntax =>>
+  (lambda_ forms
+    (fold* (lambda [inner outer]
+              (if (symbol? outer)
+                @(outer inner)
+                (append outer @(inner))))
+           forms)))
+
+(define expand-begin-syntax
+  (lambda [forms]
+    (apply
+      append*
+      (map (lambda [form]
+             (let ([f (expand-syntax form)])
+               (if (and f (list? f) (equal? (car f) 'begin))
+                 (expand-begin-syntax (cdr f))
+                 @(f))))
+           forms))))
+
+(define-syntax namespace
+  (lambda_ forms
+    (let* ([prefix (=> forms car object->string (string-append "/"))]
+           [outer-names ()]
+           [body (cdr forms)]
+           [body (=>> forms
+                      cdr
+                      expand-begin-syntax
+                      (map
+                        (lambda [form]
+                          (if (and form (list? form) (equal? (car form) 'define))
+                            (let* ([name (cadr form)]
+                                   [outer-name (=>> name object->string
+                                                    (string-append prefix)
+                                                    string->symbol)])
+                              (set! outer-names (cons outer-name outer-names))
+                              @('begin form @('set! outer-name name)))
+                            form))))]
+           [definitions (map (lambda [name] @('define name false))
+                             (reverse outer-names))])
+      (append*
+        @('begin)
+        definitions
+        @((cons* 'let () body))))))
+
+(define-syntax define-record-type
+  (lambda [_ record-name field-names check-type?]
+    (let* ([rname (object->string record-name)]
+           [type (=>> rname (string-append "#") string->symbol list (list 'quote))]
+           [constructor @('define
+                          (=>> rname (string-append "make-") string->symbol)
+                          @('lambda field-names (cons* 'vector type field-names)))]
+           [predicate-name (=> rname (string-append "?") string->symbol)]
+           [predicate @('define
+                        predicate-name
+                        @('lambda '[x]
+                          @('and '(vector? x)
+                                 '(> (vector-length x) 1)
+                                 @('identical? '(vector-ref x 0) type))))]
+           [fields
+             (named-let loop ([idx 1]
+                              [fnames field-names])
+               (when fnames
+                 (let ([fname (object->string (car fnames))])
+                   (cons
+                     @('begin
+                       @('define
+                         (string->symbol (string-append* rname "-" fname))
+                         @('lambda '[rec]
+                            (when check-type?
+                              @('when @('not @(predicate-name 'rec))
+                                  '(fail (string-append "wrong-record-type: "
+                                                        (object->string rec)))))
+                            @('vector-ref 'rec idx)))
+                       @('define
+                         (string->symbol (string-append* rname "-" fname "-set!"))
+                         @('lambda '[rec val]
+                            (when check-type?
+                              @('when @('not @(predicate-name 'rec))
+                                  '(fail (string-append "wrong-record-type: "
+                                                        (object->string rec)))))
+                            @('vector-set! 'rec idx 'val))))
+                      (loop (inc idx) (cdr fnames))))))])
+
+      (cons*
+        'begin
+        constructor
+        predicate
+        fields))))
 
