@@ -34,6 +34,22 @@
       (cons x (apply cons* y))
       x)))
 
+(define last
+  (lambda [lst]
+    (if lst
+      (if (cdr lst)
+        (last (cdr lst))
+        (car lst))
+      lst)))
+
+(define butlast
+  (lambda [lst]
+    (if lst
+      (if (null? (cdr lst))
+        ()
+        (cons (car lst) (butlast (cdr lst))))
+      lst)))
+
 (define map
   (lambda [f lst]
     (if lst
@@ -211,13 +227,17 @@
                 (append outer @(inner))))
            forms)))
 
+(define form=?
+  (lambda [form symbol]
+    (and form (list? form) (equal? (car form) symbol))))
+
 (define expand-begin-syntax
   (lambda [forms]
     (apply
       append*
       (map (lambda [form]
              (let ([f (expand-syntax form)])
-               (if (and f (list? f) (equal? (car f) 'begin))
+               (if (form=? f 'begin)
                  (expand-begin-syntax (cdr f))
                  @(f))))
            forms))))
@@ -232,7 +252,7 @@
                       expand-begin-syntax
                       (map
                         (lambda [form]
-                          (if (and form (list? form) (equal? (car form) 'define))
+                          (if (form=? form 'define)
                             (let* ([name (cadr form)]
                                    [outer-name (=>> name object->string
                                                     (string-append prefix)
@@ -291,4 +311,42 @@
         constructor
         predicate
         fields))))
+
+(define with-error-handler
+  (let ([current-handler ()]
+        [init (cons 'init ())])
+    (lambda [thunk error-handler]
+      (let* ([previous-handler current-handler]
+             [reset-previous-handler
+              (lambda []
+                (if previous-handler
+                  (set-error-handler! previous-handler)
+                  (reset-error-handler!))
+                (set! current-handler previous-handler))]
+             [error (call/cc (lambda [c]
+                               (set-error-handler! c)
+                               (set! current-handler c)
+                               init))])
+        (if (identical? error init)
+          (let ([result (thunk)])
+            (reset-previous-handler)
+            result)
+          (let ()
+            (reset-previous-handler)
+            (error-handler error)))))))
+
+(define-syntax try
+  (lambda_ forms
+    (let ([lastf (last forms)])
+      (cons
+        'with-error-handler
+        (if (form=? lastf 'catch)
+          @((cons* 'lambda [] (butlast forms))
+            (cons* 'lambda @[(cadr lastf)] (cddr lastf)))
+          @((cons* 'lambda [] forms)
+            'fail))))))
+
+
+
+
 

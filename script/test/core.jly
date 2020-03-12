@@ -82,4 +82,45 @@
 (check equal? "#vec((#point) 3 5 7)" (object->string p))
 (check equal? "#vec((#point) 3 999 7)" (object->string foo-ns/p))
 
+(let ([unreachable (lambda [] (fail "UNREACHABLE"))])
+  (check equal? "xxx baz bar foo"
+         (try
+           'foo1
+           (try
+             (try
+               (define err (apply string-append* '("x" "x" "x")))
+               (map (lambda [x]
+                      (when (> x 5)
+                        (try
+                          'yyy
+                          (fail err)
+                          'yyy)))
+                    '(3 4 5 6 7))
+               (unreachable)
+               222
+               (catch e (fail (string-append e " baz"))))
+             (unreachable)
+             'bar
+             (catch e (fail (string-append e " bar"))
+                      (unreachable)))
+
+           'foo2
+           (unreachable)
+           111
+           (catch e (string-append e " foo"))))
+
+  (check equal? "yyy baz bar"
+         (try
+           'foo
+           (try
+             (try
+               (fail "yyy")
+               (unreachable)
+               222
+               (catch e (fail (string-append e " baz"))))
+             (unreachable)
+             'bar
+             (catch e (string-append e " bar")))
+           (catch e (string-append e " foo")))))
+
 'PASSED
