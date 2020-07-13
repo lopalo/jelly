@@ -14,9 +14,28 @@
 
 (check equal? '(18) ((>>* * inc inc inc list) 3 5))
 
+(check equal? "zzzzz" (make-string 5 \z))
 (check equal? "cdef" (substring "abcdefghi" 2 4))
 (check equal? '(\a \b \c \d) (string->list "abcd"))
 (check equal? "abcd" (list->string '(\a \b \c \d)))
+(check equal? \d (string-ref "abcde" 3))
+(check equal? '(true false) (list (procedure? >>*) (procedure? "precedure")))
+
+(check equal?
+       '(\G \j 74 \K)
+       (list (char-upcase \g)
+             (char-downcase \J)
+             (char->integer \J)
+             (integer->char 75)))
+
+(check equal?
+       '(243.0 5.0)
+       (list (pow 3.0 5)
+             (=> 243 log (/ (log 3)) round)))
+(check equal?
+       '(841470 540302)
+       (list (=> 1 sin (* 1000000) truncate)
+             (=> 1 cos (* 1000000) truncate)))
 
 (check equal? (vector 1 2 3) (vector 1 2 3))
 (check equal? (vector 1 (list 2) 3) (list->vector '(1 (2) 3)))
@@ -31,7 +50,9 @@
   (check equal? (vector 1 777 3) vec)
   (check equal? 3 (vector-length vec))
   (check identical? vec vec)
-  (check equal? "#vec(1 777 3)" (object->string vec)))
+  (check equal? "#vec(1 777 3)" (object->string vec))
+  (vector-fill! (vector 'q 'q 'q) 'q)
+  (check equal? (vector 1 777 3) vec))
 
 (let ([h1 (make-hashtable 100)]
       [h2 (make-hashtable 50)])

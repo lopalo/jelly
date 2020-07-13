@@ -62,6 +62,10 @@ let is_symbol = function
   | Sym _ -> Ok (Bool true)
   | _ -> Ok (Bool false)
 
+let is_procedure = function
+  | Procedure _ -> Ok (Bool true)
+  | _ -> Ok (Bool false)
+
 let is_bool = function
   | Bool _ -> Ok (Bool true)
   | _ -> Ok (Bool false)
@@ -174,6 +178,36 @@ let less_than_eq o o' =
   | Float f, Int i -> Ok (Bool (f <= float_of_int i))
   | o, o' -> bad_args "<=" [o; o']
 
+let pow o o' =
+  let open Float in
+  match (o, o') with
+  | Float f, Float f' -> Ok (Float (pow f f'))
+  | Int i, Int i' -> Ok (Float (pow (of_int i) (of_int i')))
+  | Float f, Int i -> Ok (Float (pow f (of_int i)))
+  | Int i, Float f -> Ok (Float (pow (of_int i) f))
+  | o, o' -> bad_args "pow" [o; o']
+
+let log =
+  let open Float in
+  function
+  | Float f -> Ok (Float (log f))
+  | Int i -> Ok (Float (of_int i |> log))
+  | o -> bad_arg "log" o
+
+let sin =
+  let open Float in
+  function
+  | Float f -> Ok (Float (sin f))
+  | Int i -> Ok (Float (of_int i |> sin))
+  | o -> bad_arg "sin" o
+
+let cos =
+  let open Float in
+  function
+  | Float f -> Ok (Float (cos f))
+  | Int i -> Ok (Float (of_int i |> cos))
+  | o -> bad_arg "cos" o
+
 let not o = Ok (Bool (not (is_true o)))
 
 let fail = function
@@ -184,9 +218,37 @@ let is_char = function
   | Char _ -> Ok (Bool true)
   | _ -> Ok (Bool false)
 
+let char_upcase = function
+  | Char c -> Ok (Char (Char.uppercase_ascii c))
+  | o -> bad_arg "char-upcase" o
+
+let char_downcase = function
+  | Char c -> Ok (Char (Char.lowercase_ascii c))
+  | o -> bad_arg "char-downcase" o
+
+let char_to_integer = function
+  | Char c -> Ok (Int (Char.code c))
+  | o -> bad_arg "char->integer" o
+
+let integer_to_char = function
+  | Int i -> Ok (Char (Char.chr i))
+  | o -> bad_arg "integer->char" o
+
 let is_string = function
   | Str _ -> Ok (Bool true)
   | _ -> Ok (Bool false)
+
+let make_string o o' =
+  match (o, o') with
+  | Int n, Char c -> Ok (Str (String.make n c))
+  | o, o' -> bad_args "make-string" [o; o']
+
+let string_ref str n =
+  match (str, n) with
+  | Str s, Int n ->
+      if n >= 0 && n < String.length s then Ok (Char s.[n])
+      else bad_arg "string-ref.2.out-of-bounds" (Int n)
+  | str, n -> bad_args "string-ref" [str; n]
 
 let string_length = function
   | Str s -> Ok (Int (String.length s))
@@ -256,6 +318,13 @@ let vector_set vec n obj =
       else bad_arg "vector-set!.2.out-of-bounds" (Int n)
   | vec, n -> bad_args "vector-set!" [vec; n]
 
+let vector_fill vec obj =
+  match vec with
+  | Vec arr ->
+      Array.(fill arr 0 (length arr) obj);
+      Ok Null
+  | vec -> bad_arg "vector-fill!" vec
+
 let list_to_vector = function
   | Cons (objs, _) -> Ok (Vec (Array.of_list objs))
   | Null -> Ok (Vec (Array.of_list []))
@@ -323,6 +392,7 @@ let objects =
       ("copy-meta", procedure (Function2 copy_meta));
       ("string->symbol", procedure (Function1 string_to_symbol));
       ("symbol?", procedure (Function1 is_symbol));
+      ("procedure?", procedure (Function1 is_procedure));
       ("bool?", procedure (Function1 is_bool));
       ("integer?", procedure (Function1 is_integer));
       ("float?", procedure (Function1 is_float));
@@ -341,6 +411,10 @@ let objects =
       (">=", procedure (Function2 greater_than_eq));
       ("<", procedure (Function2 less_than));
       ("<=", procedure (Function2 less_than_eq));
+      ("pow", procedure (Function2 pow));
+      ("log", procedure (Function1 log));
+      ("sin", procedure (Function1 sin));
+      ("cos", procedure (Function1 cos));
       ("not", procedure (Function1 not));
       ("fail", procedure (Function1 fail));
       ("set-error-handler!", Null);
@@ -352,8 +426,14 @@ let objects =
       ("start-timer!", Null);
       ("stop-timer!", Null);
       ("char?", procedure (Function1 is_char));
+      ("char-upcase", procedure (Function1 char_upcase));
+      ("char-downcase", procedure (Function1 char_downcase));
+      ("char->integer", procedure (Function1 char_to_integer));
+      ("integer->char", procedure (Function1 integer_to_char));
       ("string?", procedure (Function1 is_string));
+      ("make-string", procedure (Function2 make_string));
       ("string-length", procedure (Function1 string_length));
+      ("string-ref", procedure (Function2 string_ref));
       ("substring", procedure (Function3 substring));
       ("string->list", procedure (Function1 string_to_list));
       ("list->string", procedure (Function1 list_to_string));
@@ -364,6 +444,7 @@ let objects =
       ("vector-length", procedure (Function1 vector_length));
       ("vector-ref", procedure (Function2 vector_ref));
       ("vector-set!", procedure (Function3 vector_set));
+      ("vector-fill!", procedure (Function2 vector_fill));
       ("vector->list", procedure (Function1 vector_to_list));
       ("list->vector", procedure (Function1 list_to_vector));
       ("make-hashtable", procedure (Function1 make_hashtable));
