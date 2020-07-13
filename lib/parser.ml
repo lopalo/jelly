@@ -201,9 +201,7 @@ let escaped_character = and_then ~join:second (character '\\') any
 let char_literal =
   let space = fmap (Fun.const ' ') (string "\\space") in
   let newline = fmap (Fun.const '\n') (string "\\newline") in
-  fmap
-    (fun x -> Obj.Char x)
-    (or_else space @@ or_else newline escaped_character)
+  fmap (fun x -> Obj.Char x) (or_else space @@ or_else newline escaped_character)
 
 let string_literal =
   let d_char = '"' in
@@ -283,8 +281,7 @@ let lisp_parser = lisp () |> separated_many ~sep:lisp_spaces |> parse_all
 
 let result_map = Stdlib.Result.map (* to avoild conflict with ppx rewriters *)
 
-let parse_lisp ?source_name str =
-  lisp_parser ?source_name str |> result_map snd
+let parse_lisp ?source_name str = lisp_parser ?source_name str |> result_map snd
 
 let sentences =
   let word = fmap string_of_chars (plus alphanumeric) in

@@ -84,8 +84,7 @@ let bad_arg () =
        { error = "bad-arg.cons.2: a";
          stack_size = 0;
          stack_trace =
-           [{source_name = "no source"; line_number = 0; column_number = 27}]
-       })
+           [{source_name = "no source"; line_number = 0; column_number = 27}] })
     (Common.execute_str "((lambda [x] (define y 'a) (cons x y)) 7)")
 
 let wrong_lambda_arguments_number () =
@@ -103,8 +102,7 @@ let wrong_function_arguments_number () =
        { error = "Function takes 2 arguments";
          stack_size = 0;
          stack_trace =
-           [{source_name = "no source"; line_number = 0; column_number = 27}]
-       })
+           [{source_name = "no source"; line_number = 0; column_number = 27}] })
     (Common.execute_str "((lambda [x] (define y 'a) (cons x)) 7)")
 
 let non_procedure_application () =
@@ -113,8 +111,7 @@ let non_procedure_application () =
        { error = "a is not a procedure";
          stack_size = 0;
          stack_trace =
-           [{source_name = "no source"; line_number = 0; column_number = 27}]
-       })
+           [{source_name = "no source"; line_number = 0; column_number = 27}] })
     (Common.execute_str "((lambda [x] (define y 'a) (y x)) 7)")
 
 let error_handler () =

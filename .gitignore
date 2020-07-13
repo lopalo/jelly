@@ -1,5 +1,6 @@
 
 _build/
+_opam/
 .merlin
 Session.vim
 jelly.install

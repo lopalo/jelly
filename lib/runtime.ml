@@ -155,8 +155,7 @@ and execute_procedure ctx stack meta = function
                         stack_size = stack_size + err_ctx.stack_size;
                         stack_trace = stack_trace @ err_ctx.stack_trace })))
         | _ ->
-            application_error ctx stack meta "Syntax expander takes 1 argument"
-        )
+            application_error ctx stack meta "Syntax expander takes 1 argument")
       | CallWithCurrentContinuation -> (
         match args with
         | [(Procedure _ as proc)] ->
@@ -168,8 +167,8 @@ and execute_procedure ctx stack meta = function
       | Continuation next_stack -> (
         match args with
         | [arg] -> return ctx next_stack arg
-        | _ -> application_error ctx stack meta "Continuation takes 1 argument"
-        ))
+        | _ -> application_error ctx stack meta "Continuation takes 1 argument")
+      )
     | obj ->
         application_error ctx stack meta
           (Obj.to_string obj ^ " is not a procedure"))

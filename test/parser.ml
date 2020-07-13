@@ -84,5 +84,4 @@ let tests =
   [ A.test_case "sentences" `Quick test_sentences;
     A.test_case "lisp" `Quick test_lisp;
     A.test_case "wrong lisp" `Quick test_wrong_lisp;
-    A.test_case "wrong lisp (large input)" `Quick test_wrong_lisp_large_input
-  ]
+    A.test_case "wrong lisp (large input)" `Quick test_wrong_lisp_large_input ]

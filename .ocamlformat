@@ -1,4 +1,5 @@
 profile = ocamlformat
+margin = 80
 field-space = loose
 indicate-multiline-delimiters = no
 sequence-style = terminator

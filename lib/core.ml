@@ -4,8 +4,7 @@ let bad_arg header obj = Error ("bad-arg." ^ header ^ ": " ^ to_string obj)
 
 let bad_args header objs =
   Error
-    ("bad-args." ^ header ^ ": " ^ String.concat ", "
-   @@ List.map to_string objs)
+    ("bad-args." ^ header ^ ": " ^ String.concat ", " @@ List.map to_string objs)
 
 let obj_to_string obj = Ok (Str (to_string obj))
 

@@ -12,8 +12,8 @@ let parse_string source_name str =
     ->
       let prefix = String.sub input 0 @@ min 50 @@ String.length input in
       print_endline
-      @@ format "Parse error at line %i column %i of '%s': %s\n\n%s"
-           (succ lnum) (succ cnum) source_name msg prefix;
+      @@ format "Parse error at line %i column %i of '%s': %s\n\n%s" (succ lnum)
+           (succ cnum) source_name msg prefix;
       None
 
 let parse_file file_name =

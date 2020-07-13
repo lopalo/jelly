@@ -71,8 +71,7 @@ let expressions () =
                                            identifier "n" 7 12;
                                            Application
                                              { expressions =
-                                                 [ identifier "make-num-seq" 7
-                                                     15;
+                                                 [ identifier "make-num-seq" 7 15;
                                                    Application
                                                      { expressions =
                                                          [ identifier "y" 7 29;

@@ -70,8 +70,7 @@ and compile_lambda obj = function
   | _ -> raise (InvalidFormExn obj)
 
 and compile_application meta objs =
-  [ Application
-      {expressions = flat_map compile objs; computed_values = []; meta} ]
+  [Application {expressions = flat_map compile objs; computed_values = []; meta}]
 
 and compile_define ~lambda_level obj args =
   match (lambda_level, args) with
@@ -100,8 +99,7 @@ let rec resolve_names ~definitions ~local_definitions ~local_names = function
     match expression with
     | Expression.Value _ as expression ->
         let expressions, outer_names =
-          resolve_names ~definitions ~local_definitions ~local_names
-            expressions
+          resolve_names ~definitions ~local_definitions ~local_names expressions
         in
         (expression :: expressions, outer_names)
     | Identifier {name; meta} ->
@@ -109,20 +107,17 @@ let rec resolve_names ~definitions ~local_definitions ~local_names = function
           raise (UndefinedNameExn (name, meta));
         let local_names = Symbol.Set.add name local_names in
         let expressions, outer_names =
-          resolve_names ~definitions ~local_definitions ~local_names
-            expressions
+          resolve_names ~definitions ~local_definitions ~local_names expressions
         in
         (expression :: expressions, outer_names)
     | If {condition; then_expr; else_expr} ->
-        let[@warning "-8"] [condition; then_expr; else_expr], expr_outer_names
-            =
+        let[@warning "-8"] [condition; then_expr; else_expr], expr_outer_names =
           resolve_names ~definitions ~local_definitions ~local_names
             [condition; then_expr; else_expr]
         in
         let local_names = Symbol.Set.union local_names expr_outer_names in
         let expressions, outer_names =
-          resolve_names ~definitions ~local_definitions ~local_names
-            expressions
+          resolve_names ~definitions ~local_definitions ~local_names expressions
         in
         (If {condition; then_expr; else_expr} :: expressions, outer_names)
     | Lambda ({arguments; expressions = lambda_exprs; _} as e) ->
@@ -139,13 +134,10 @@ let rec resolve_names ~definitions ~local_definitions ~local_names = function
         in
         let local_names = Symbol.Set.union local_names expr_outer_names in
         let expressions, outer_names =
-          resolve_names ~definitions ~local_definitions ~local_names
-            expressions
+          resolve_names ~definitions ~local_definitions ~local_names expressions
         in
         ( Lambda
-            { e with
-              expressions = lambda_exprs;
-              closure_names = expr_outer_names }
+            {e with expressions = lambda_exprs; closure_names = expr_outer_names}
           :: expressions,
           outer_names )
     | Application ({expressions = application_exprs; _} as e) ->
@@ -155,8 +147,7 @@ let rec resolve_names ~definitions ~local_definitions ~local_names = function
         in
         let local_names = Symbol.Set.union local_names expr_outer_names in
         let expressions, outer_names =
-          resolve_names ~definitions ~local_definitions ~local_names
-            expressions
+          resolve_names ~definitions ~local_definitions ~local_names expressions
         in
         ( Application {e with expressions = application_exprs} :: expressions,
           outer_names )
@@ -171,8 +162,7 @@ let rec resolve_names ~definitions ~local_definitions ~local_names = function
         in
         let local_names = Symbol.Set.union local_names expr_outer_names in
         let expressions, outer_names =
-          resolve_names ~definitions ~local_definitions ~local_names
-            expressions
+          resolve_names ~definitions ~local_definitions ~local_names expressions
         in
         (Define {e with expression = define_expr} :: expressions, outer_names)
     | Set ({name; expression = set_expr; meta} as e) ->
@@ -184,8 +174,7 @@ let rec resolve_names ~definitions ~local_definitions ~local_names = function
         in
         let local_names = Symbol.Set.union local_names expr_outer_names in
         let expressions, outer_names =
-          resolve_names ~definitions ~local_definitions ~local_names
-            expressions
+          resolve_names ~definitions ~local_definitions ~local_names expressions
         in
         (Set {e with expression = set_expr} :: expressions, outer_names)
     | DefineSyntax ({name; expression = define_expr; meta} as e) ->
@@ -196,8 +185,7 @@ let rec resolve_names ~definitions ~local_definitions ~local_names = function
             [define_expr]
         in
         let expressions, outer_names =
-          resolve_names ~definitions ~local_definitions ~local_names
-            expressions
+          resolve_names ~definitions ~local_definitions ~local_names expressions
         in
         ( DefineSyntax {e with expression = define_expr} :: expressions,
           outer_names ))
